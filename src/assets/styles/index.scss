@@ -1,0 +1,14 @@
+// src/assets/styles/index.scss
+
+// 全局 SCSS 变量
+:root {
+  --el-color-primary: #409EFF;
+  --el-color-primary-light-9: #ecf5ff;
+  --el-color-info-light-9: #f4f4f5;
+  --el-text-color-primary: #303133;
+  --el-text-color-secondary: #909399;
+  --el-border-color-light: #ebeef5;
+  --el-color-white: #ffffff;
+}
+
+// 可以添加其他全局样式或混入
