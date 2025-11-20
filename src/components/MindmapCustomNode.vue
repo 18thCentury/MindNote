@@ -3,7 +3,9 @@ import { computed, ref, nextTick, onMounted, onBeforeUnmount } from "vue";
 import { Handle, Position } from "@vue-flow/core";
 import { useMindmapStore } from "../stores/mindmapStore";
 import { useFileStore } from "../stores/fileStore";
+
 import { useEditorStore } from "../stores/editorStore";
+import { useUIStore } from "../stores/uiStore"; // Import uiStore
 import type { MindmapNode } from "../types/shared_types";
 
 const props = defineProps({
@@ -24,6 +26,7 @@ const props = defineProps({
 const mindmapStore = useMindmapStore();
 const fileStore = useFileStore();
 const editorStore = useEditorStore();
+const uiStore = useUIStore(); // Import uiStore
 
 const isEditing = ref(false);
 const editText = ref("");
@@ -118,6 +121,14 @@ const finishEditing = () => {
         editorStore.setTextInputActive(false); // Signal that editing has finished
     }
 };
+
+
+const openImage = (imageName: string) => {
+    const url = getImageUrl(imageName);
+    if (url) {
+        uiStore.openImageViewer(url);
+    }
+};
 </script>
 
 <template>
@@ -125,7 +136,11 @@ const finishEditing = () => {
         <Handle type="target" :position="Position.Left" class="node-handle" />
 
         <div v-if="firstImage" class="node-thumbnail-wrapper">
-            <img :src="getImageUrl(firstImage)" class="node-thumbnail" />
+            <img 
+                :src="getImageUrl(firstImage)" 
+                class="node-thumbnail" 
+                @dblclick.stop="openImage(firstImage)"
+            />
         </div>
 
         <div v-if="!isEditing">{{ data.text }}</div>

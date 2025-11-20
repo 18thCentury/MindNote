@@ -375,6 +375,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
       selectAndPanToNode(newNode.id); // Select and pan to the new node
 
       // Initialize markdown content for the new node in fileStore
+      const fileStore = useFileStore();
       fileStore.setMarkdownContent(newNode.markdown, "");
     }
   };
@@ -419,6 +420,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
         selectAndPanToNode(newNode.id); // Select and pan to the new node
 
         // Initialize markdown content for the new node in fileStore
+        const fileStore = useFileStore();
         fileStore.setMarkdownContent(newNode.markdown, "");
       }
     } else if (node && !parentNode) {

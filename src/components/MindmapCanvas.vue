@@ -25,8 +25,11 @@ import { useFileStore } from "../stores/fileStore";
 import { useEditorStore } from "../stores/editorStore";
 import { ipcRenderer } from "../utils/ipcRenderer";
 import { IPC_EVENTS } from "../types/shared_types";
+
 import MindmapCustomNode from "./MindmapCustomNode.vue";
+import ImageViewerModal from "./ImageViewerModal.vue"; // Import Modal
 import type { MindmapNode } from "../types/shared_types";
+import { useUIStore } from "../stores/uiStore"; // Import UI Store
 
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
@@ -60,7 +63,9 @@ const { onNodeClick, onNodeContextMenu, getNodes, fitView, viewport, project } =
     useVueFlow();
 const mindmapStore = useMindmapStore();
 const fileStore = useFileStore();
+
 const editorStore = useEditorStore();
+const uiStore = useUIStore(); // Use UI Store
 
 // --- State for Drag and Drop ---
 const draggedNodeInfo = ref<{
@@ -540,6 +545,12 @@ watch(
                 </el-dropdown-menu>
             </template>
         </el-dropdown>
+
+        <ImageViewerModal
+            :visible="uiStore.imageViewer.visible"
+            :image-url="uiStore.imageViewer.imageUrl"
+            @close="uiStore.closeImageViewer()"
+        />
     </div>
 </template>
 

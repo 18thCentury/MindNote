@@ -106,5 +106,10 @@ export interface FileState {
 export interface UIState {
   selectedNodeId: string | null;
   pinnedNodeIds: string[]; // Array of node IDs that are pinned
+  imageViewer: {
+    visible: boolean;
+    imageUrl: string | null;
+  };
   // Add other UI-related states here
 }
+
