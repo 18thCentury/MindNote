@@ -124,9 +124,9 @@ This document outlines the development tasks for the MindNote application, broke
 * **Guardrail:** Must prevent **circular dependencies** (A cannot be dropped onto any of its descendants). Drop must be invalid in this case.
 **Output Format:** Code snippet for `MindmapCanvas.vue` demonstrating the drag event handlers (`onNodeDrag`, `onNodeDragStop`) including the hot zone calculation logic and Pinia Action calls.
 
-#### To-Do: Implement Image Node Insertion and Display (Drag and Drop)
+#### To-Do: Implement Image Insertion and Display (Drag and Drop)
 **AI Role:** Vue.js front-end developer, UI/UX designer, `vue-flow` expert.
-**Task:** Implement the ability to drag image into the mindmap. These nodes should display a thumbnail of the image.Drag and Drop logic is like todo "Implement Node Re-parenting & Sorting (Drag and Drop)". Upon dropping an image onto the canvas or a node, create a new image node at that position. Update the Pinia `mindmapStore` accordingly.
+**Task:** Implement the ability to drag image into the mindmap. These nodes should display a thumbnail of the image.Drag and Drop logic is like the todo:"Implement Node Re-parenting & Sorting (Drag and Drop)". Upon dropping an image onto the sibling or a node, create a new image node at that position. Update the Pinia `mindmapStore` accordingly.
 **Assumptions:**
 *   `MindmapCanvas.vue` is implemented.
 *   `MindmapCustomNode.vue` can render images.

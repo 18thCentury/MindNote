@@ -19,6 +19,49 @@ export const useMindmapStore = defineStore("mindmap", () => {
     new Map(),
   );
 
+  // --- Undo/Redo State ---
+  const past = ref<string[]>([]); // Stack of past states (serialized rootNode)
+  const future = ref<string[]>([]); // Stack of future states (serialized rootNode)
+
+  const pushState = () => {
+    if (rootNode.value) {
+      past.value.push(JSON.stringify(rootNode.value));
+      future.value = []; // Clear future when a new action is taken
+    }
+  };
+
+  const undo = () => {
+    if (past.value.length === 0 || !rootNode.value) return;
+
+    // Push current state to future
+    future.value.push(JSON.stringify(rootNode.value));
+
+    // Pop from past and restore
+    const previousState = past.value.pop();
+    if (previousState) {
+      rootNode.value = JSON.parse(previousState);
+      debouncedApplyLayout(); // Re-apply layout
+      const fileStore = useFileStore();
+      fileStore.markAsUnsaved();
+    }
+  };
+
+  const redo = () => {
+    if (future.value.length === 0 || !rootNode.value) return;
+
+    // Push current state to past
+    past.value.push(JSON.stringify(rootNode.value));
+
+    // Pop from future and restore
+    const nextState = future.value.pop();
+    if (nextState) {
+      rootNode.value = JSON.parse(nextState);
+      debouncedApplyLayout(); // Re-apply layout
+      const fileStore = useFileStore();
+      fileStore.markAsUnsaved();
+    }
+  };
+
   // Constants for layout and estimated node sizes
   const ESTIMATED_NODE_WIDTH = 150;
   const ESTIMATED_NODE_HEIGHT = 40;
@@ -129,6 +172,9 @@ export const useMindmapStore = defineStore("mindmap", () => {
   // Action: 设置思维导图数据
   const setMindmapData = (data: MindmapNode) => {
     rootNode.value = data; // Direct assignment for initial load
+    past.value = []; // Clear history on load
+    future.value = [];
+    applyLayout(); // Apply layout immediately on initial data load
     applyLayout(); // Apply layout immediately on initial data load
     selectedNodeId.value = data.id; // 默认选中根节点
     viewRootNodeId.value = data.id; // 默认视图根节点也是实际根节点
@@ -289,6 +335,8 @@ export const useMindmapStore = defineStore("mindmap", () => {
   const addChildNode = (parentNodeId: string, text: string = "新子节点") => {
     if (!rootNode.value) return;
 
+    pushState(); // Save state before modification
+
     const { node: parentNode } = findNodeAndParent(
       parentNodeId,
       rootNode.value,
@@ -334,6 +382,8 @@ export const useMindmapStore = defineStore("mindmap", () => {
   // Action: 添加兄弟节点
   const addSiblingNode = (nodeId: string, text: string = "新兄弟节点") => {
     if (!rootNode.value) return;
+
+    pushState(); // Save state before modification
 
     const { node, parent: parentNode } = findNodeAndParent(
       nodeId,
@@ -382,9 +432,13 @@ export const useMindmapStore = defineStore("mindmap", () => {
     if (!rootNode.value) return;
     const { node } = findNodeAndParent(nodeId, rootNode.value);
     if (node) {
-      node.text = newText;
-      const fileStore = useFileStore();
-      fileStore.markAsUnsaved();
+      // Only push state if text actually changed
+      if (node.text !== newText) {
+        pushState();
+        node.text = newText;
+        const fileStore = useFileStore();
+        fileStore.markAsUnsaved();
+      }
     }
   };
 
@@ -395,6 +449,8 @@ export const useMindmapStore = defineStore("mindmap", () => {
       console.warn("Cannot delete the root node.");
       return;
     }
+
+    pushState(); // Save state before modification
 
     const fileStore = useFileStore();
     const nodesToDelete: MindmapNode[] = [];
@@ -489,6 +545,8 @@ export const useMindmapStore = defineStore("mindmap", () => {
       return;
     }
 
+    pushState(); // Save state before modification
+
     const currentRoot = rootNode.value; // Work directly on the reactive root
     const { node: movedNode, parent: oldParentNode } = findNodeAndParent(
       nodeId,
@@ -554,6 +612,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
     if (!rootNode.value) return;
     const { node } = findNodeAndParent(nodeId, rootNode.value);
     if (node) {
+      pushState(); // Save state before modification
       if (!node.images) {
         node.images = [];
       }
@@ -569,6 +628,9 @@ export const useMindmapStore = defineStore("mindmap", () => {
     if (!rootNode.value) return;
     const { node } = findNodeAndParent(nodeId, rootNode.value);
     if (node) {
+      // Only push state if position actually changed significantly (optional optimization, but good for now)
+      // For drag-end, we assume it's a valid move worth saving
+      pushState();
       node.position = newPosition;
       const fileStore = useFileStore();
       fileStore.markAsUnsaved();
@@ -617,6 +679,8 @@ export const useMindmapStore = defineStore("mindmap", () => {
       targetNodeId,
       rootNode.value,
     );
+
+    pushState(); // Save state before modification
 
     // Ensure both nodes are siblings
     if (draggedParent && targetParent && draggedParent.id === targetParent.id) {
@@ -694,6 +758,10 @@ export const useMindmapStore = defineStore("mindmap", () => {
     // For Drag and Drop
     getAllDescendants,
     reorderNode,
+    getAllDescendants,
+    reorderNode,
     setNodePosition,
+    undo,
+    redo,
   };
 });

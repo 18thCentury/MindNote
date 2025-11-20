@@ -350,6 +350,19 @@ const handleKeyDown = (event: KeyboardEvent) => {
         event.preventDefault();
         mindmapStore.addSiblingNode(props.selectedNodeId);
     }
+    // Undo/Redo shortcuts
+    if ((event.ctrlKey || event.metaKey) && event.key === "z") {
+        event.preventDefault();
+        if (event.shiftKey) {
+            mindmapStore.redo();
+        } else {
+            mindmapStore.undo();
+        }
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key === "y") {
+        event.preventDefault();
+        mindmapStore.redo();
+    }
 };
 
 const showContextMenu = async (event: MouseEvent) => {
