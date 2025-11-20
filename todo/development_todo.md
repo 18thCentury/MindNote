@@ -124,15 +124,31 @@ This document outlines the development tasks for the MindNote application, broke
 * **Guardrail:** Must prevent **circular dependencies** (A cannot be dropped onto any of its descendants). Drop must be invalid in this case.
 **Output Format:** Code snippet for `MindmapCanvas.vue` demonstrating the drag event handlers (`onNodeDrag`, `onNodeDragStop`) including the hot zone calculation logic and Pinia Action calls.
 
-#### To-Do: Implement Image Insertion and Display (Drag and Drop)
+#### To-Do: Implement View Original Image on Double-Click image
 **AI Role:** Vue.js front-end developer, UI/UX designer, `vue-flow` expert.
-**Task:** Implement the ability to drag image into the mindmap. These nodes should display a thumbnail of the image.Drag and Drop logic is like the todo:"Implement Node Re-parenting & Sorting (Drag and Drop)". Upon dropping an image onto the sibling or a node, create a new image node at that position. Update the Pinia `mindmapStore` accordingly.
+**Task:** Implement the ability to view the original image when an image node is double-clicked. A modal/pop-up window should display the large image with specific interaction features.
 **Assumptions:**
-*   `MindmapCanvas.vue` is implemented.
-*   `MindmapCustomNode.vue` can render images.
-*   Pinia `mindmapStore` can manage image node data.
-**Output Format:** Vue component code snippets for `MindmapCanvas.vue` (insertion logic) and `MindmapCustomNode.vue` (image rendering).
-
+* `MindmapCanvas.vue` is the main container, responsible for displaying the modal.
+* `MindmapCustomNode.vue` can render images and handle the double-click event on the image area.
+* Pinia `mindmapStore` can manage image node data (including image URL/path) and potentially the state of the modal.
+* The mindmap area is the reference for the 80% maximum size calculation.
+**Functional Requirements:**
+1.  **Trigger:** Double-click the image area within a node to open the modal.
+2.  **Display Specs:**
+    * Modal size is **max 80%** of the Mindmap Canvas area.
+    * Image maintains its original aspect ratio.
+    * Modal has a close button (top-right). Esc key also closes the modal.
+3.  **Core Interactions:**
+    * **Zoom (Mouse Wheel):** Scroll wheel zooms the image at the cursor position. Cannot zoom smaller than the initial displayed size.
+    * **Pan/Drag:** When the image is zoomed/larger than the display container, click and drag (mouse down) to pan the image view.
+    * **Reset Zoom:** Double-click the image to reset the zoom level to the initial displayed size.
+    * **Actual Size:** Implement a button/control to zoom the image to its **$100\%$** original pixel size (unless $100\%$ is smaller than the initial fit size, in which case it stays at the initial fit size).
+4.  **Information Display:**
+    * Show the image's **Original Pixel Dimensions** (e.g., $2560 \times 1440$) and the **Current Zoom Scale** (e.g., $150\%$) within the modal interface.
+**Output Format:** Vue component code snippets for:
+* `MindmapCanvas.vue` (The modal/pop-up structure and state management).
+* `MindmapCustomNode.vue` (Event handling to trigger the modal).
+* A new **`ImageViewerModal.vue`** component (The core logic for pan, zoom, reset, and info display).
 
 
 ## 2. Markdown Editor Module Development

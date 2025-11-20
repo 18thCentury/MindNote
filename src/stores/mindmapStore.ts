@@ -421,9 +421,111 @@ export const useMindmapStore = defineStore("mindmap", () => {
         // Initialize markdown content for the new node in fileStore
         fileStore.setMarkdownContent(newNode.markdown, "");
       }
-    } else if (node && !parentNode && tempRoot.id === nodeId) {
+    } else if (node && !parentNode) {
       // If the selected node is the root and has no parent, we can't add a sibling in the current structure.
       console.warn("Cannot add sibling to root node without a parent.");
+    }
+  };
+
+  // Action: 添加带图片的子节点
+  const addChildNodeWithImage = (
+    parentNodeId: string,
+    imageName: string,
+    text: string = "New Image",
+  ) => {
+    if (!rootNode.value) return;
+
+    pushState();
+
+    const { node: parentNode } = findNodeAndParent(
+      parentNodeId,
+      rootNode.value,
+    );
+
+    if (parentNode) {
+      const parentSize = nodeDimensions.value.get(parentNodeId) || {
+        width: ESTIMATED_NODE_WIDTH,
+        height: ESTIMATED_NODE_HEIGHT,
+      };
+      const initialX =
+        (parentNode.position?.x || 0) + parentSize.width + HORIZONTAL_GAP;
+      let initialY = parentNode.position?.y || 0;
+
+      if (parentNode.children.length > 0) {
+        const lastChild = parentNode.children[parentNode.children.length - 1];
+        const lastChildSize = nodeDimensions.value.get(lastChild.id) || {
+          width: ESTIMATED_NODE_WIDTH,
+          height: ESTIMATED_NODE_HEIGHT,
+        };
+        initialY =
+          (lastChild.position?.y || 0) + lastChildSize.height + VERTICAL_GAP;
+      }
+
+      const newNode: MindmapNode = {
+        id: generateUuid(),
+        text: text,
+        children: [],
+        markdown: `${generateUuid()}.md`,
+        images: [imageName],
+        position: { x: initialX, y: initialY },
+      };
+      parentNode.children.push(newNode);
+      debouncedApplyLayout();
+      selectAndPanToNode(newNode.id);
+      const fileStore = useFileStore();
+      fileStore.setMarkdownContent(newNode.markdown, "");
+      fileStore.markAsUnsaved();
+    }
+  };
+
+  // Action: 添加带图片的兄弟节点
+  const addSiblingNodeWithImage = (
+    nodeId: string,
+    imageName: string,
+    position: "before" | "after",
+    text: string = "New Image",
+  ) => {
+    if (!rootNode.value) return;
+
+    pushState();
+
+    const { node, parent: parentNode } = findNodeAndParent(
+      nodeId,
+      rootNode.value,
+    );
+
+    if (node && parentNode) {
+      const nodeSize = nodeDimensions.value.get(nodeId) || {
+        width: ESTIMATED_NODE_WIDTH,
+        height: ESTIMATED_NODE_HEIGHT,
+      };
+      const parentSize = nodeDimensions.value.get(parentNode.id) || {
+        width: ESTIMATED_NODE_WIDTH,
+        height: ESTIMATED_NODE_HEIGHT,
+      };
+      const initialX =
+        (parentNode.position?.x || 0) + parentSize.width + HORIZONTAL_GAP;
+      const initialY = (node.position?.y || 0) + nodeSize.height + VERTICAL_GAP;
+
+      const newNode: MindmapNode = {
+        id: generateUuid(),
+        text: text,
+        children: [],
+        markdown: `${generateUuid()}.md`,
+        images: [imageName],
+        position: { x: initialX, y: initialY },
+      };
+
+      const index = parentNode.children.findIndex((n) => n.id === node.id);
+      if (index !== -1) {
+        const insertIndex = position === "before" ? index : index + 1;
+        parentNode.children.splice(insertIndex, 0, newNode);
+        debouncedApplyLayout();
+        selectAndPanToNode(newNode.id);
+        const fileStore = useFileStore();
+        fileStore.setMarkdownContent(newNode.markdown, "");
+        fileStore.markAsUnsaved();
+      }
     }
   };
 
@@ -743,7 +845,9 @@ export const useMindmapStore = defineStore("mindmap", () => {
     selectAndPanToNode,
     setViewRoot, // Expose new action
     addChildNode,
+    addChildNodeWithImage, // Expose new action
     addSiblingNode,
+    addSiblingNodeWithImage, // Expose new action
     updateNodeText,
     updateNodePosition, // Expose new action
     deleteNode, // Expose new action
@@ -756,8 +860,6 @@ export const useMindmapStore = defineStore("mindmap", () => {
     setNodeDraggable, // Expose draggable action
     setNodeDimensions, // Expose dimensions setter
     // For Drag and Drop
-    getAllDescendants,
-    reorderNode,
     getAllDescendants,
     reorderNode,
     setNodePosition,

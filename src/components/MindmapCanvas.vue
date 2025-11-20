@@ -170,16 +170,15 @@ const onNodeDragStart = ({ node }: NodeDragEvent) => {
     dropAction.value = null;
 };
 
-const onNodeDrag = ({ node: draggedNode, event }: NodeDragEvent) => {
-    if (!draggedNode) return;
-    dropAction.value = null; // Reset on each drag event
 
-    const { x: cursorX, y: cursorY } = project({
-        x: event.clientX,
-        y: event.clientY,
-    });
 
-    const otherNodes = getNodes.value.filter((n) => n.id !== draggedNode.id);
+// --- Helper for Drop Target Calculation ---
+const calculateDropTarget = (
+    cursorX: number,
+    cursorY: number,
+    draggedNodeId: string | null, // null for external files
+): DropAction => {
+    const otherNodes = getNodes.value.filter((n) => n.id !== draggedNodeId);
     let bestTarget: { action: DropAction; distance: number } | null = null;
 
     for (const targetNode of otherNodes) {
@@ -218,11 +217,13 @@ const onNodeDrag = ({ node: draggedNode, event }: NodeDragEvent) => {
         );
         const isTargetLeaf = targetMindmapNode?.children.length === 0;
 
-        // Check for circular dependency
-        const isCircular = mindmapStore
-            .getAllDescendants(draggedNode.id)
-            .some((desc) => desc.id === targetNode.id);
-        if (isCircular) continue;
+        // Check for circular dependency (only for internal node drag)
+        if (draggedNodeId) {
+            const isCircular = mindmapStore
+                .getAllDescendants(draggedNodeId)
+                .some((desc) => desc.id === targetNode.id);
+            if (isCircular) continue;
+        }
 
         const updateBestTarget = (action: DropAction, distance: number) => {
             if (!bestTarget || distance < bestTarget.distance) {
@@ -256,7 +257,70 @@ const onNodeDrag = ({ node: draggedNode, event }: NodeDragEvent) => {
         }
     }
 
-    dropAction.value = bestTarget?.action ?? null;
+    return bestTarget?.action ?? null;
+};
+
+const onNodeDrag = ({ node: draggedNode, event }: NodeDragEvent) => {
+    if (!draggedNode) return;
+    dropAction.value = null; // Reset on each drag event
+
+    const { x: cursorX, y: cursorY } = project({
+        x: event.clientX,
+        y: event.clientY,
+    });
+
+    dropAction.value = calculateDropTarget(cursorX, cursorY, draggedNode.id);
+};
+
+// --- External File Drag and Drop ---
+const onExternalDragOver = (event: DragEvent) => {
+    if (!event.dataTransfer) return;
+    // Check if dragging files
+    if (
+        event.dataTransfer.types.includes("Files")
+    ) {
+        event.dataTransfer.dropEffect = "copy";
+        const { x: cursorX, y: cursorY } = project({
+            x: event.clientX,
+            y: event.clientY,
+        });
+        dropAction.value = calculateDropTarget(cursorX, cursorY, null);
+    }
+};
+
+const onExternalDrop = async (event: DragEvent) => {
+    if (!event.dataTransfer) return;
+    const files = event.dataTransfer.files;
+    if (files.length > 0) {
+        const file = files[0];
+        if (file.type.startsWith("image/")) {
+            try {
+                const imageName = await fileStore.saveDroppedImage(file);
+                if (dropAction.value) {
+                    const { type, targetNodeId } = dropAction.value;
+                    if (type === "parent") {
+                        mindmapStore.addChildNodeWithImage(
+                            targetNodeId,
+                            imageName,
+                            file.name,
+                        );
+                    } else if (type === "reparent-and-reorder") {
+                        const { position } = dropAction.value;
+                        mindmapStore.addSiblingNodeWithImage(
+                            targetNodeId,
+                            imageName,
+                            position,
+                            file.name,
+                        );
+                    }
+                }
+            } catch (error) {
+                ElMessage.error("Failed to save dropped image.");
+                console.error(error);
+            }
+        }
+    }
+    dropAction.value = null;
 };
 
 const onNodeDragStop = ({ node }: NodeDragEvent) => {
@@ -416,7 +480,12 @@ watch(
 </script>
 
 <template>
-    <div class="mindmap-canvas-wrapper" @click="dropdownRef?.handleClose()">
+    <div
+        class="mindmap-canvas-wrapper"
+        @click="dropdownRef?.handleClose()"
+        @dragover.prevent="onExternalDragOver"
+        @drop.prevent="onExternalDrop"
+    >
         <VueFlow
             :nodes="flowNodes"
             :edges="flowEdges"

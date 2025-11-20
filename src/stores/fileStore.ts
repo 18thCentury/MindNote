@@ -131,6 +131,29 @@ export const useFileStore = defineStore("file", () => {
     }
   };
 
+  // Action: 保存拖放的图片
+  const saveDroppedImage = async (file: File): Promise<string> => {
+    if (!tempDir.value) throw new Error("No file open");
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const base64Data = e.target?.result as string;
+          const imageName = await ipcRenderer.invoke(
+            IPC_EVENTS.IMAGE_SAVE,
+            tempDir.value,
+            base64Data,
+          );
+          resolve(imageName);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    });
+  };
+
   // Action: 创建新文件
   const createNewFile = async () => {
     try {
@@ -235,5 +258,6 @@ export const useFileStore = defineStore("file", () => {
     deleteMarkdownContent,
     getAllMarkdownContent,
     deleteTempFile, // Expose the new action
+    saveDroppedImage, // Expose new action
   };
 });
