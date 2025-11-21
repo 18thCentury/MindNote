@@ -265,13 +265,24 @@ const calculateDropTarget = (
     return bestTarget?.action ?? null;
 };
 
+const canvasWrapperRef = ref<HTMLElement | null>(null);
+
 const onNodeDrag = ({ node: draggedNode, event }: NodeDragEvent) => {
     if (!draggedNode) return;
     dropAction.value = null; // Reset on each drag event
 
+    let clientX = event.clientX;
+    let clientY = event.clientY;
+
+    if (canvasWrapperRef.value) {
+        const rect = canvasWrapperRef.value.getBoundingClientRect();
+        clientX -= rect.left;
+        clientY -= rect.top;
+    }
+
     const { x: cursorX, y: cursorY } = project({
-        x: event.clientX,
-        y: event.clientY,
+        x: clientX,
+        y: clientY,
     });
 
     dropAction.value = calculateDropTarget(cursorX, cursorY, draggedNode.id);
@@ -285,9 +296,19 @@ const onExternalDragOver = (event: DragEvent) => {
         event.dataTransfer.types.includes("Files")
     ) {
         event.dataTransfer.dropEffect = "copy";
+
+        let clientX = event.clientX;
+        let clientY = event.clientY;
+
+        if (canvasWrapperRef.value) {
+            const rect = canvasWrapperRef.value.getBoundingClientRect();
+            clientX -= rect.left;
+            clientY -= rect.top;
+        }
+
         const { x: cursorX, y: cursorY } = project({
-            x: event.clientX,
-            y: event.clientY,
+            x: clientX,
+            y: clientY,
         });
         dropAction.value = calculateDropTarget(cursorX, cursorY, null);
     }
@@ -487,6 +508,7 @@ watch(
 <template>
     <div
         class="mindmap-canvas-wrapper"
+        ref="canvasWrapperRef"
         @click="dropdownRef?.handleClose()"
         @dragover.prevent="onExternalDragOver"
         @drop.prevent="onExternalDrop"

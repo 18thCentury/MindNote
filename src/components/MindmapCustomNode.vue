@@ -35,24 +35,26 @@ const nodeEl = ref<HTMLElement | null>(null);
 let resizeObserver: ResizeObserver | null = null;
 
 onMounted(() => {
-  if (nodeEl.value) {
-    resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect;
-        mindmapStore.setNodeDimensions(props.data.id, { width, height });
-      }
-    });
-    resizeObserver.observe(nodeEl.value);
-  }
+    if (nodeEl.value) {
+        resizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                const { width, height } = entry.contentRect;
+                mindmapStore.setNodeDimensions(props.data.id, {
+                    width,
+                    height,
+                });
+            }
+        });
+        resizeObserver.observe(nodeEl.value);
+    }
 });
 
 onBeforeUnmount(() => {
-  if (resizeObserver && nodeEl.value) {
-    resizeObserver.unobserve(nodeEl.value);
-  }
-  resizeObserver = null;
+    if (resizeObserver && nodeEl.value) {
+        resizeObserver.unobserve(nodeEl.value);
+    }
+    resizeObserver = null;
 });
-
 
 const nodeClass = computed(() => {
     const classes = ["custom-node"];
@@ -122,7 +124,6 @@ const finishEditing = () => {
     }
 };
 
-
 const openImage = (imageName: string) => {
     const url = getImageUrl(imageName);
     if (url) {
@@ -136,9 +137,9 @@ const openImage = (imageName: string) => {
         <Handle type="target" :position="Position.Left" class="node-handle" />
 
         <div v-if="firstImage" class="node-thumbnail-wrapper">
-            <img 
-                :src="getImageUrl(firstImage)" 
-                class="node-thumbnail" 
+            <img
+                :src="getImageUrl(firstImage)"
+                class="node-thumbnail"
                 @dblclick.stop="openImage(firstImage)"
             />
         </div>
@@ -175,7 +176,9 @@ const openImage = (imageName: string) => {
     border-radius: 4px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     cursor: pointer;
-    transition: box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out;
+    transition:
+        box-shadow 0.2s ease-in-out,
+        border-color 0.2s ease-in-out;
 }
 
 .custom-node.selected-node {
@@ -184,8 +187,8 @@ const openImage = (imageName: string) => {
 }
 
 .custom-node.drop-target-node {
-  border: 2px dashed var(--el-color-success);
-  box-shadow: 0 0 0 4px var(--el-color-success-light-5);
+    border: 2px dashed var(--el-color-success);
+    box-shadow: 0 0 0 4px var(--el-color-success-light-5);
 }
 
 .custom-node.root-node {
