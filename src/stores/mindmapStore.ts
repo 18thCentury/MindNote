@@ -977,10 +977,12 @@ export const useMindmapStore = defineStore("mindmap", () => {
     deleteNode,
     reparentNode,
     togglePin,
+    toggleNodeCollapse,
     // For Drag and Drop
     getAllDescendants,
     reorderNode,
     setNodePosition,
+    setNodeDraggable,
     undo,
     redo,
     // Helpers

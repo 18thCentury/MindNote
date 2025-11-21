@@ -59,7 +59,7 @@ const props = defineProps<{
 
 const emit = defineEmits(["node-selected"]);
 
-const { onNodeClick, onNodeContextMenu, getNodes, fitView, viewport, project } =
+const { onNodeClick, onNodeContextMenu, getNodes, fitView, viewport, project, setCenter, findNode } =
     useVueFlow();
 const mindmapStore = useMindmapStore();
 const fileStore = useFileStore();
@@ -716,19 +716,40 @@ onBeforeUnmount(() => {
     window.removeEventListener("keydown", handleKeyDown);
 });
 
+// --- Viewport Management ---
+const panToNode = (nodeId: string) => {
+    const node = findNode(nodeId);
+    if (!node || !canvasWrapperRef.value) return;
+
+    const { width } = canvasWrapperRef.value.getBoundingClientRect();
+    const zoom = viewport.value.zoom;
+
+    // We want the node center to be at 38.2% of the screen width (Golden Ratio from left)
+    // and 50% of the screen height.
+    // Center of screen is 50% width.
+    // Offset required: (0.5 - 0.382) * width = 0.118 * width (to the right of node)
+    
+    const nodeW = node.dimensions.width || 150;
+    const nodeH = node.dimensions.height || 40;
+    const nodeCenterX = node.position.x + nodeW / 2;
+    const nodeCenterY = node.position.y + nodeH / 2;
+
+    // Calculate the graph coordinate that should be at the center of the viewport
+    const targetCenterX = nodeCenterX + (width * 0.118) / zoom;
+    const targetCenterY = nodeCenterY;
+
+    setCenter(targetCenterX, targetCenterY, { zoom, duration: 300 });
+};
+
 // --- Watchers for automatic view adjustments ---
 watch(
     () => mindmapStore.viewRootNodeId,
     (newId) => {
         if (newId) {
-            nextTick(() =>
-                fitView({
-                    nodes: [newId],
-                    duration: 300,
-                    maxZoom: viewport.value.zoom,
-                    minZoom: viewport.value.zoom,
-                }),
-            );
+            nextTick(() => panToNode(newId));
+        } else if (mindmapStore.rootNode) {
+             // If view root is cleared, go back to actual root
+             nextTick(() => panToNode(mindmapStore.rootNode!.id));
         }
     },
 );
@@ -738,16 +759,30 @@ watch(
     (newId) => {
         if (newId) {
             nextTick(() => {
-                fitView({
-                    nodes: [newId],
-                    duration: 300,
-                    maxZoom: viewport.value.zoom,
-                    minZoom: viewport.value.zoom,
-                });
+                panToNode(newId);
                 mindmapStore.panTargetNodeId = null;
             });
         }
     },
+);
+
+// Watch for root node change (e.g. file load)
+watch(
+    () => mindmapStore.rootNode,
+    (newRoot) => {
+        if (newRoot) {
+            // On load, we might want to reset zoom or keep it?
+            // Usually fitView is good for initial load, but user requested specific position.
+            // Let's wait for nodes to be rendered (dimensions)
+            nextTick(() => {
+                // Small delay to ensure dimensions are ready
+                setTimeout(() => {
+                    panToNode(newRoot.id);
+                }, 100);
+            });
+        }
+    },
+    { immediate: true } // Trigger if already loaded
 );
 </script>
 

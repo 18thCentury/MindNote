@@ -96,6 +96,7 @@ const getImageUrl = (imageName: string) => {
 };
 
 const toggleCollapse = () => {
+    console.log("toggleCollapse clicked for node:", props.data.id);
     mindmapStore.toggleNodeCollapse(props.data.id);
 };
 
@@ -159,14 +160,16 @@ const openImage = (imageName: string) => {
         <button
             v-if="hasChildren"
             @click.stop="toggleCollapse"
-            class="collapse-button"
+            @dblclick.stop
+            class="collapse-button nodrag"
         >
-            {{ isCollapsed ? "+" : "-" }}
+            <span class="icon">{{ isCollapsed ? "+" : "−" }}</span>
         </button>
     </div>
 </template>
 
 <style scoped>
+/* ... existing styles ... */
 .custom-node {
     padding: 8px 12px;
     min-width: 80px;
@@ -174,85 +177,82 @@ const openImage = (imageName: string) => {
     position: relative;
     background-color: var(--el-color-white);
     border: 1px solid var(--el-border-color);
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 6px; /* Slightly more rounded */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Softer shadow */
     cursor: pointer;
     transition:
         box-shadow 0.2s ease-in-out,
-        border-color 0.2s ease-in-out;
+        border-color 0.2s ease-in-out,
+        transform 0.1s ease;
 }
 
+/* ... */
 .custom-node.selected-node {
     border-color: var(--el-color-primary);
-    box-shadow: 0 0 0 2px var(--el-color-primary-light-5);
+    background-color: var(--el-color-primary-light-9);
+    box-shadow:
+        0 0 0 2px var(--el-color-primary-light-5),
+        0 4px 12px rgba(var(--el-color-primary-rgb), 0.2);
+    transform: translateY(-1px);
+    z-index: 5;
 }
 
 .custom-node.drop-target-node {
     border: 2px dashed var(--el-color-success);
-    box-shadow: 0 0 0 4px var(--el-color-success-light-5);
+    background-color: var(--el-color-success-light-9);
+    box-shadow:
+        0 0 0 4px var(--el-color-success-light-5),
+        0 4px 12px rgba(var(--el-color-success-rgb), 0.2);
+    transform: scale(1.02);
+    z-index: 10;
 }
 
 .custom-node.root-node {
     background-color: var(--el-color-primary-light-9); /* Distinct background */
-    padding: 10px 20px; /* Larger size */
+    padding: 12px 24px; /* Larger size */
+    font-size: 16px;
     font-weight: bold; /* Bold text */
     border-color: var(--el-color-primary);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.node-handle {
-    width: 10px;
-    height: 10px;
-    background-color: var(--el-color-primary);
-    border-radius: 50%;
-    border: 1px solid var(--el-color-white);
-    cursor: crosshair;
-}
-
-.node-handle.vue-flow__handle-left {
-    left: -5px;
-}
-
-.node-handle.vue-flow__handle-right {
-    right: -5px;
-}
-
-.node-input {
-    width: 100%;
-    border: none;
-    outline: none;
-    background-color: transparent;
-    text-align: center;
-    font-family: inherit;
-    font-size: inherit;
-    color: inherit;
-    padding: 0;
-    margin: 0;
+    border-width: 2px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
 .collapse-button {
     position: absolute;
-    right: -10px;
+    right: -12px; /* Slightly further out */
     top: 50%;
     transform: translateY(-50%);
-    width: 10px;
-    height: 10px;
+    width: 16px; /* Larger touch target */
+    height: 16px;
     border-radius: 50%;
-    border: 1px solid var(--el-border-color);
-    background-color: var(--el-color-info-light-8);
-    color: white;
+    border: 1px solid var(--el-border-color-lighter);
+    background-color: var(--el-color-white);
+    color: var(--el-text-color-secondary);
     cursor: pointer;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 14px;
+    font-size: 12px;
     line-height: 1;
     z-index: 10;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    padding: 0;
 }
 
 .collapse-button:hover {
-    background-color: var(--el-color-info);
+    background-color: var(--el-color-primary-light-9);
+    color: var(--el-color-primary);
+    border-color: var(--el-color-primary-light-5);
+    transform: translateY(-50%) scale(1.1);
 }
+
+.collapse-button .icon {
+    position: relative;
+    top: -0.5px; /* Optical alignment */
+    font-weight: bold;
+}
+
 
 .node-thumbnail-wrapper {
     margin-bottom: 5px;
