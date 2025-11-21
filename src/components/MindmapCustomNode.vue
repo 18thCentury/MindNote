@@ -240,6 +240,29 @@ const openImage = (imageName: string) => {
     padding: 0;
 }
 
+.node-input {
+    width: 100%;
+    border: none;
+    outline: none;
+    background: transparent;
+    background-color: transparent;
+    text-align: center;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    color: inherit;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+    line-height: inherit;
+}
+
+.node-input:focus {
+    outline: none;
+    border: none;
+    box-shadow: none;
+}
+
 .collapse-button:hover {
     background-color: var(--el-color-primary-light-9);
     color: var(--el-color-primary);
