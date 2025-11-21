@@ -10,7 +10,7 @@ import { MindmapNode, MindmapEdge } from "../types/shared";
 
 export const useMindmapStore = defineStore("mindmap", () => {
   const rootNode = ref<MindmapNode | null>(null); // 当前思维导图的实际根节点
-  const selectedNodeId = ref<string | null>(null); // 当前选中的节点ID
+  const selectedNodeIds = ref<string[]>([]); // 当前选中的节点ID列表
   const pinnedNodeIds = ref<string[]>([]); // Pin 的节点ID列表
   const viewRootNodeId = ref<string | null>(null); // 当前视图的根节点ID (用于局部显示)
   const collapsedNodeIds = ref<string[]>([]); // 新增：用于存储折叠的节点ID
@@ -134,19 +134,34 @@ export const useMindmapStore = defineStore("mindmap", () => {
     return nodes;
   });
 
-  // Getter: 获取当前选中的节点对象 (从整个 mindmap 中查找)
-  const selectedNode = computed(() => {
-    if (!selectedNodeId.value || !rootNode.value) return null;
-    return findNodeAndParent(selectedNodeId.value, rootNode.value).node;
+  // Getter: 获取当前选中的节点对象列表
+  const selectedNodes = computed(() => {
+    if (selectedNodeIds.value.length === 0 || !rootNode.value) return [];
+    return selectedNodeIds.value
+      .map((id) => findNodeAndParent(id, rootNode.value).node)
+      .filter((n): n is MindmapNode => n !== null);
   });
 
-  // Getter for the path from the view root to the selected node
+  // Getter: 获取主要选中的节点（通常是最后一个选中的，用于单节点操作）
+  const primarySelectedNodeId = computed(() => {
+    if (selectedNodeIds.value.length === 0) return null;
+    return selectedNodeIds.value[selectedNodeIds.value.length - 1];
+  });
+
+  // Getter: 获取当前选中的单个节点 (兼容旧代码)
+  const selectedNode = computed(() => {
+    if (!primarySelectedNodeId.value || !rootNode.value) return null;
+    const { node } = findNodeAndParent(primarySelectedNodeId.value, rootNode.value);
+    return node;
+  });
+
+  // Getter for the path from the view root to the primary selected node
   const currentNodePath = computed(() => {
-    if (!selectedNodeId.value || !rootNode.value) return [];
+    if (!primarySelectedNodeId.value || !rootNode.value) return [];
 
     // 1. Find the full path from the actual root to the selected node
     const fullPath: MindmapNode[] = [];
-    let currentId = selectedNodeId.value;
+    let currentId = primarySelectedNodeId.value;
     while (currentId) {
       const { node, parent } = findNodeAndParent(currentId, rootNode.value);
       if (node) {
@@ -176,7 +191,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
     future.value = [];
     applyLayout(); // Apply layout immediately on initial data load
     applyLayout(); // Apply layout immediately on initial data load
-    selectedNodeId.value = data.id; // 默认选中根节点
+    selectedNodeIds.value = [data.id]; // 默认选中根节点
     viewRootNodeId.value = data.id; // 默认视图根节点也是实际根节点
 
     // 如果 pinnedNodeIds 为空，则默认 pin 实际根节点
@@ -185,9 +200,68 @@ export const useMindmapStore = defineStore("mindmap", () => {
     }
   };
 
-  // Action: 选中节点
+  // Action: 选中单一节点 (Clear others)
   const selectNode = (nodeId: string) => {
-    selectedNodeId.value = nodeId;
+    selectedNodeIds.value = [nodeId];
+  };
+
+  // Action: 切换节点选中状态 (Alt/Ctrl click)
+  const toggleNodeSelection = (nodeId: string) => {
+    const index = selectedNodeIds.value.indexOf(nodeId);
+    if (index > -1) {
+      selectedNodeIds.value.splice(index, 1);
+    } else {
+      selectedNodeIds.value.push(nodeId);
+    }
+  };
+
+  // Action: 添加节点到选中列表
+  const addNodeToSelection = (nodeId: string) => {
+    if (!selectedNodeIds.value.includes(nodeId)) {
+      selectedNodeIds.value.push(nodeId);
+    }
+  };
+
+  // Action: 清除所有选中
+  const clearSelection = () => {
+    selectedNodeIds.value = [];
+  };
+
+  // Action: 范围选择 (Shift click) - Select siblings between last selected and current
+  const selectRange = (targetNodeId: string) => {
+    if (!rootNode.value || selectedNodeIds.value.length === 0) {
+      selectNode(targetNodeId);
+      return;
+    }
+
+    const lastSelectedId = selectedNodeIds.value[selectedNodeIds.value.length - 1];
+    if (lastSelectedId === targetNodeId) return;
+
+    const { parent: targetParent } = findNodeAndParent(targetNodeId, rootNode.value);
+    const { parent: lastParent } = findNodeAndParent(lastSelectedId, rootNode.value);
+
+    // Only support range selection for siblings under the same parent
+    if (targetParent && lastParent && targetParent.id === lastParent.id) {
+      const siblings = targetParent.children;
+      const index1 = siblings.findIndex(n => n.id === lastSelectedId);
+      const index2 = siblings.findIndex(n => n.id === targetNodeId);
+
+      if (index1 !== -1 && index2 !== -1) {
+        const start = Math.min(index1, index2);
+        const end = Math.max(index1, index2);
+
+        // Add all nodes in range to selection
+        for (let i = start; i <= end; i++) {
+          addNodeToSelection(siblings[i].id);
+        }
+      } else {
+        // Fallback if indices weird
+        addNodeToSelection(targetNodeId);
+      }
+    } else {
+      // If not siblings, just add the target node
+      addNodeToSelection(targetNodeId);
+    }
   };
 
   // Action: Selects a node and triggers the pan event
@@ -546,88 +620,124 @@ export const useMindmapStore = defineStore("mindmap", () => {
     }
   };
 
-  // Action: 删除节点
-  const deleteNode = (nodeId: string) => {
+  // Action: 删除节点 (支持批量删除)
+  const deleteNode = (nodeId?: string) => {
     if (!rootNode.value) return;
-    if (nodeId === rootNode.value.id) {
-      console.warn("Cannot delete the root node.");
+
+    // If a specific node is requested (e.g. from context menu), delete only that one
+    // Otherwise, delete all selected nodes
+    const nodesToDeleteIds = nodeId ? [nodeId] : [...selectedNodeIds.value];
+
+    if (nodesToDeleteIds.length === 0) return;
+
+    // Filter out root node if attempted to delete
+    const validIdsToDelete = nodesToDeleteIds.filter(id => id !== rootNode.value?.id);
+
+    if (validIdsToDelete.length === 0) {
+      console.warn("Cannot delete the root node or no valid nodes to delete.");
       return;
     }
 
     pushState(); // Save state before modification
 
     const fileStore = useFileStore();
-    const nodesToDelete: MindmapNode[] = [];
-    const currentRoot = rootNode.value; // Work directly on the reactive root
+    const currentRoot = rootNode.value;
+    let parentOfLastDeleted: MindmapNode | null = null;
 
-    // 1. 递归查找函数：找到要删除的节点及其所有子孙节点
-    const findAndCollect = (
-      node: MindmapNode,
-      targetId: string,
-      parent: MindmapNode | null,
-    ): boolean => {
-      if (node.id === targetId) {
-        // 找到节点，收集它和它的所有子孙
-        collectAllChildren(node, nodesToDelete);
-        // 从父节点的 children 数组中移除
-        if (parent) {
-          parent.children = parent.children.filter(
-            (child) => child.id !== targetId,
-          );
-        }
-        return true;
-      }
-      for (const child of node.children) {
-        if (findAndCollect(child, targetId, node)) {
+    // Helper to delete a single node
+    const deleteSingleNode = (targetId: string) => {
+      const nodesToDelete: MindmapNode[] = [];
+
+      // 1. 递归查找函数：找到要删除的节点及其所有子孙节点
+      const findAndCollect = (
+        node: MindmapNode,
+        targetId: string,
+        parent: MindmapNode | null,
+      ): boolean => {
+        if (node.id === targetId) {
+          // 找到节点，收集它和它的所有子孙
+          collectAllChildren(node, nodesToDelete);
+          // 从父节点的 children 数组中移除
+          if (parent) {
+            parent.children = parent.children.filter(
+              (child) => child.id !== targetId,
+            );
+            parentOfLastDeleted = parent;
+          }
           return true;
         }
-      }
-      return false;
-    };
-
-    const collectAllChildren = (
-      node: MindmapNode,
-      collection: MindmapNode[],
-    ) => {
-      collection.push(node);
-      for (const child of node.children) {
-        collectAllChildren(child, collection);
-      }
-    };
-
-    // 2. 执行查找、收集和状态更新
-    const parentOfDeleted = findNodeAndParent(nodeId, currentRoot).parent;
-    if (findAndCollect(currentRoot, nodeId, null)) {
-      // No need to call _updateRootNode, changes are made directly
-      debouncedApplyLayout(); // Apply layout after deleting
-
-      // 3. 遍历所有被删除的节点，清理它们的资源
-      for (const node of nodesToDelete) {
-        // a. 清理 Markdown 内容
-        if (node.markdown) {
-          fileStore.deleteMarkdownContent(node.markdown);
+        for (const child of node.children) {
+          if (findAndCollect(child, targetId, node)) {
+            return true;
+          }
         }
-        // b. 清理图片文件
-        if (node.images && node.images.length > 0) {
-          for (const imageName of node.images) {
-            fileStore.deleteTempFile(`images/${imageName}`);
+        return false;
+      };
+
+      const collectAllChildren = (
+        node: MindmapNode,
+        collection: MindmapNode[],
+      ) => {
+        collection.push(node);
+        for (const child of node.children) {
+          collectAllChildren(child, collection);
+        }
+      };
+
+      if (findAndCollect(currentRoot, targetId, null)) {
+        // 3. 遍历所有被删除的节点，清理它们的资源
+        for (const node of nodesToDelete) {
+          // a. 清理 Markdown 内容
+          if (node.markdown) {
+            fileStore.deleteMarkdownContent(node.markdown);
+          }
+          // b. 清理图片文件
+          if (node.images && node.images.length > 0) {
+            for (const imageName of node.images) {
+              fileStore.deleteTempFile(`images/${imageName}`);
+            }
           }
         }
       }
+    };
 
-      // 4. 标记为未保存
-      fileStore.markAsUnsaved();
-
-      // 5. 如果删除的节点是当前选中的，则将选中移到其父节点
-      if (selectedNodeId.value === nodeId && parentOfDeleted) {
-        selectNode(parentOfDeleted.id);
+    // Execute deletion for all targets
+    // Sort by depth or process carefully to avoid issues if deleting parent and child together
+    // Actually, if we delete a parent, the child is gone too. 
+    // So we should check if a node still exists before trying to delete it.
+    for (const id of validIdsToDelete) {
+      // Check if node still exists (it might have been deleted as a child of a previous node)
+      const { node } = findNodeAndParent(id, currentRoot);
+      if (node) {
+        deleteSingleNode(id);
       }
+    }
 
-      // If the deleted node was the temporary view root, reset to the actual root
-      if (viewRootNodeId.value === nodeId) {
-        if (rootNode.value) {
-          setViewRoot(rootNode.value.id);
-        }
+    debouncedApplyLayout(); // Apply layout after deleting
+    fileStore.markAsUnsaved();
+
+    // Update selection
+    // If we deleted the selected nodes, try to select the parent of the last deleted node
+    // or clear selection if nothing makes sense
+    const remainingSelected = selectedNodeIds.value.filter(id => {
+      const { node } = findNodeAndParent(id, currentRoot);
+      return !!node;
+    });
+
+    if (remainingSelected.length > 0) {
+      selectedNodeIds.value = remainingSelected;
+    } else if (parentOfLastDeleted) {
+      selectNode(parentOfLastDeleted.id);
+    } else {
+      selectedNodeIds.value = [];
+    }
+
+    // If the deleted node was the temporary view root, reset to the actual root
+    // Check if viewRoot still exists
+    if (viewRootNodeId.value) {
+      const { node } = findNodeAndParent(viewRootNodeId.value, currentRoot);
+      if (!node && rootNode.value) {
+        setViewRoot(rootNode.value.id);
       }
     }
   };
@@ -834,38 +944,46 @@ export const useMindmapStore = defineStore("mindmap", () => {
   };
 
   return {
+    // State
     rootNode,
-    selectedNodeId,
+    selectedNodeId: primarySelectedNodeId, // Backward compatibility alias if needed, or just use primary
+    selectedNodeIds,
     pinnedNodeIds,
-    viewRootNodeId, // Expose new state
+    viewRootNodeId,
+    collapsedNodeIds,
     panTargetNodeId,
+    nodeDimensions,
+    // Getters
     allNodes,
-    selectedNode,
+    selectedNode, // This now returns the primary selected node
+    selectedNodes,
     currentNodePath,
+    // Actions
     setMindmapData,
     selectNode,
+    toggleNodeSelection,
+    addNodeToSelection,
+    clearSelection,
+    selectRange,
     selectAndPanToNode,
-    setViewRoot, // Expose new action
+    setViewRoot,
+    applyLayout,
+    setNodeDimensions,
     addChildNode,
-    addChildNodeWithImage, // Expose new action
     addSiblingNode,
-    addSiblingNodeWithImage, // Expose new action
+    addChildNodeWithImage,
+    addSiblingNodeWithImage,
     updateNodeText,
-    updateNodePosition, // Expose new action
-    deleteNode, // Expose new action
-    reparentNode, // Expose new action
+    deleteNode,
+    reparentNode,
     togglePin,
-    collapsedNodeIds, // Expose collapsed state
-    toggleNodeCollapse, // Expose collapse action
-    addImageToNode, // Expose add image action
-    findNodeAndParent, // Expose helper function
-    setNodeDraggable, // Expose draggable action
-    setNodeDimensions, // Expose dimensions setter
     // For Drag and Drop
     getAllDescendants,
     reorderNode,
     setNodePosition,
     undo,
     redo,
+    // Helpers
+    findNodeAndParent,
   };
 });

@@ -61,7 +61,8 @@ watch(
 
 // 模拟 MindmapCanvas 节点选中事件
 const handleNodeSelected = (nodeId: string) => {
-    mindmapStore.selectNode(nodeId);
+    // mindmapStore.selectNode(nodeId); // Removed to prevent overriding multi-selection logic in MindmapCanvas
+    console.log("Node selected event received:", nodeId);
 };
 
 // 模拟 MarkdownEditor 内容变化事件

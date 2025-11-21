@@ -58,7 +58,8 @@ onBeforeUnmount(() => {
 
 const nodeClass = computed(() => {
     const classes = ["custom-node"];
-    if (props.selected) {
+    // Check if this node's ID is in the selectedNodeIds array
+    if (mindmapStore.selectedNodeIds.includes(props.data.id)) {
         classes.push("selected-node");
     }
     if (props.data.type === "root") {
