@@ -145,6 +145,11 @@ export interface BackgroundStyle {
   pattern: 'dots' | 'lines' | 'cross' | 'none';
 }
 
+export interface LayoutStyle {
+  horizontalGap: number;
+  verticalGap: number;
+}
+
 export interface MindmapTheme {
   id: string;
   name: string;
@@ -152,6 +157,7 @@ export interface MindmapTheme {
   lineStyle: LineStyle;
   backgroundStyle: BackgroundStyle;
   selectedNodeStyle: SelectedNodeStyle;
+  layoutStyle: LayoutStyle;
 }
 
 /**
@@ -163,10 +169,12 @@ export interface AppSettings {
   selectedNodeStyle: SelectedNodeStyle;
   lineStyle: LineStyle;
   backgroundStyle: BackgroundStyle;
+  layoutStyle: LayoutStyle;
   shortcuts: Record<string, string>; // Action ID -> Shortcut Key (e.g., "file:new": "Ctrl+N")
   mindmapThemes: MindmapTheme[];
   activeMindmapTheme: string | null;
 }
+
 
 
 

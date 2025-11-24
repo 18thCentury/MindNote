@@ -289,7 +289,13 @@ export const useMindmapStore = defineStore("mindmap", () => {
     const VERTICAL_GAP = 20;
     const tempRoot = JSON.parse(JSON.stringify(rootNode.value));
 
+    const subtreeHeightCache = new Map<string, number>();
+
     const getSubtreeHeight = (node: MindmapNode): number => {
+      if (subtreeHeightCache.has(node.id)) {
+        return subtreeHeightCache.get(node.id)!;
+      }
+
       const mySize = nodeDimensions.value.get(node.id) || {
         width: 150,
         height: 40,
@@ -298,13 +304,17 @@ export const useMindmapStore = defineStore("mindmap", () => {
         collapsedNodeIds.value.includes(node.id) ||
         node.children.length === 0
       ) {
-        return mySize.height + VERTICAL_GAP;
+        const height = mySize.height + VERTICAL_GAP;
+        subtreeHeightCache.set(node.id, height);
+        return height;
       }
       let childrenHeight = 0;
       for (const child of node.children) {
         childrenHeight += getSubtreeHeight(child);
       }
-      return Math.max(mySize.height + VERTICAL_GAP, childrenHeight);
+      const height = Math.max(mySize.height + VERTICAL_GAP, childrenHeight);
+      subtreeHeightCache.set(node.id, height);
+      return height;
     };
 
     const positionNodes = (
@@ -328,8 +338,30 @@ export const useMindmapStore = defineStore("mindmap", () => {
 
       node.position = { x: myX, y: myY };
 
-      let cumulativeChildY = startY;
       if (!collapsedNodeIds.value.includes(node.id)) {
+        let childrenTotalHeight = 0;
+        for (const child of node.children) {
+          childrenTotalHeight += getSubtreeHeight(child);
+        }
+
+        // Calculate vertical offset to center children relative to parent
+        // If parent's subtree height is determined by its own height (plus gap),
+        // we might want to center the children block within that available space?
+        // Actually, `mySubtreeHeight` IS the total height occupied by this node and its children.
+        // `childrenTotalHeight` is the height of just the children stack.
+        // We want the center of the children stack to align with the center of the parent node.
+        // Parent center Y = myY + mySize.height / 2
+        // Children stack center Y = startChildY + childrenTotalHeight / 2
+        // So: startChildY = Parent Center Y - childrenTotalHeight / 2
+
+        // Let's verify with the existing logic:
+        // myY = startY + mySubtreeHeight / 2 - mySize.height / 2
+        // Parent Center Y = startY + mySubtreeHeight / 2
+        // So startChildY = (startY + mySubtreeHeight / 2) - childrenTotalHeight / 2
+        //                = startY + (mySubtreeHeight - childrenTotalHeight) / 2
+
+        let cumulativeChildY = startY + (mySubtreeHeight - childrenTotalHeight) / 2;
+
         for (const child of node.children) {
           positionNodes(child, level + 1, cumulativeChildY);
           cumulativeChildY += getSubtreeHeight(child);

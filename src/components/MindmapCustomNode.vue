@@ -131,6 +131,12 @@ const finishEditing = () => {
     }
 };
 
+const openImage = (imageName: string) => {
+    const url = getImageUrl(imageName);
+    if (url) {
+        uiStore.openImageViewer(url);
+    }
+};
 
 
 const customStyle = computed(() => {
