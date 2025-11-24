@@ -1,5 +1,37 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, watch } from "vue";
+import { useSettingsStore } from "./stores/settingsStore";
+
+const settingsStore = useSettingsStore();
+
+onMounted(async () => {
+    await settingsStore.loadSettings();
+    applyTheme(settingsStore.settings.theme);
+});
+
+watch(
+    () => settingsStore.settings.theme,
+    (newTheme) => {
+        applyTheme(newTheme);
+    }
+);
+
+const applyTheme = (theme: string) => {
+    const html = document.documentElement;
+    if (theme === "dark") {
+        html.classList.add("dark");
+    } else if (theme === "light") {
+        html.classList.remove("dark");
+    } else {
+        // System
+        if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            html.classList.add("dark");
+        } else {
+            html.classList.remove("dark");
+        }
+    }
+};
+
 import Header from "./components/Header.vue";
 import MainView from "./views/MainView.vue";
 import Footer from "./components/Footer.vue";

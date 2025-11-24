@@ -6,7 +6,9 @@ import { useFileStore } from "../stores/fileStore";
 
 import { useEditorStore } from "../stores/editorStore";
 import { useUIStore } from "../stores/uiStore"; // Import uiStore
+import { useSettingsStore } from "../stores/settingsStore"; // Import settingsStore
 import type { MindmapNode } from "../types/shared_types";
+
 
 const props = defineProps({
     data: {
@@ -27,6 +29,9 @@ const mindmapStore = useMindmapStore();
 const fileStore = useFileStore();
 const editorStore = useEditorStore();
 const uiStore = useUIStore(); // Import uiStore
+const settingsStore = useSettingsStore();
+
+
 
 const isEditing = ref(false);
 const editText = ref("");
@@ -126,17 +131,30 @@ const finishEditing = () => {
     }
 };
 
-const openImage = (imageName: string) => {
-    const url = getImageUrl(imageName);
-    if (url) {
-        uiStore.openImageViewer(url);
-    }
-};
+
+
+const customStyle = computed(() => {
+    const style = props.selected 
+        ? settingsStore.settings.selectedNodeStyle 
+        : settingsStore.settings.nodeStyle;
+        
+    return {
+        backgroundColor: style.backgroundColor,
+        borderColor: style.borderColor,
+        borderWidth: `${style.borderWidth}px`,
+        // Use borderRadius from normal style if not present in selected style (though we added it to interface, let's be safe or just use normal style's radius for consistency if not in selected)
+        // Actually, SelectedNodeStyle doesn't have borderRadius in my definition above, so I'll use the normal one.
+        borderRadius: `${settingsStore.settings.nodeStyle.borderRadius}px`, 
+        color: style.textColor,
+    };
+});
 </script>
 
+
 <template>
-    <div :class="nodeClass" @dblclick="startEditing" ref="nodeEl">
+    <div :class="nodeClass" @dblclick="startEditing" ref="nodeEl" :style="customStyle">
         <Handle type="target" :position="Position.Left" class="node-handle" />
+
 
         <div v-if="firstImage" class="node-thumbnail-wrapper">
             <img

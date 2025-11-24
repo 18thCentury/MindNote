@@ -31,8 +31,13 @@ import ImageViewerModal from "./ImageViewerModal.vue"; // Import Modal
 import type { MindmapNode } from "../types/shared_types";
 import { useUIStore } from "../stores/uiStore"; // Import UI Store
 
+import { Background } from "@vue-flow/background"; // Import Background
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
+
+import { useSettingsStore } from "../stores/settingsStore"; // Import settingsStore
+
+
 
 // Define types for drag and drop actions
 type DropAction =
@@ -66,6 +71,8 @@ const fileStore = useFileStore();
 
 const editorStore = useEditorStore();
 const uiStore = useUIStore(); // Use UI Store
+const settingsStore = useSettingsStore(); // Use settingsStore
+
 
 // --- State for Drag and Drop ---
 const draggedNodeInfo = ref<{
@@ -110,8 +117,15 @@ const layoutElements = computed(() => {
                 id: `e-${parentId}-${node.id}`,
                 source: parentId,
                 target: node.id,
+                style: {
+                    stroke: settingsStore.settings.lineStyle.stroke,
+                    strokeWidth: settingsStore.settings.lineStyle.strokeWidth,
+                },
+                type: settingsStore.settings.lineStyle.type,
+                animated: false,
             });
         }
+
         if (mindmapStore.collapsedNodeIds.includes(node.id)) return;
         for (const child of node.children) {
             traverse(child, node.id);
@@ -821,7 +835,15 @@ watch(
                     "
                 />
             </template>
+            <Background 
+                :pattern-color="settingsStore.settings.backgroundStyle.pattern === 'none' ? 'transparent' : '#aaa'"
+                :gap="20" 
+                :size="1" 
+                :variant="settingsStore.settings.backgroundStyle.pattern === 'dots' ? 'dots' : (settingsStore.settings.backgroundStyle.pattern === 'lines' ? 'lines' : 'dots')"
+                :style="{ backgroundColor: settingsStore.settings.backgroundStyle.color }"
+            />
         </VueFlow>
+
 
         <div class="drop-indicator" :style="dropIndicatorStyle"></div>
         

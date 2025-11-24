@@ -242,6 +242,41 @@ export const useFileStore = defineStore("file", () => {
     }
   };
 
+  // Action: 关闭当前文件
+  const closeCurrentFile = async () => {
+    if (!tempDir.value) return;
+
+    // Check for unsaved changes? (Maybe later, for now just close)
+
+    try {
+      await ipcRenderer.invoke(IPC_EVENTS.FILE_CLOSE);
+
+      // Reset state
+      currentFilePath.value = null;
+      tempDir.value = null;
+      allMarkdownContents.value = {};
+      saveStatus.value = "saved";
+
+      // Clear other stores
+      const mindmapStore = useMindmapStore();
+      mindmapStore.setMindmapData({
+        id: "root",
+        text: "Root",
+        children: [],
+        markdown: "",
+        images: [],
+      }); // Reset to empty or initial state
+
+      const editorStore = useEditorStore();
+      editorStore.setMarkdownContent("", "");
+
+      ElMessage.success("File closed.");
+    } catch (error) {
+      console.error("Failed to close file:", error);
+      ElMessage.error("Failed to close file.");
+    }
+  };
+
   return {
     currentFilePath,
     saveStatus,
@@ -249,15 +284,17 @@ export const useFileStore = defineStore("file", () => {
     isFileOpen,
     openMnFile,
     saveCurrentFile,
-    saveCurrentFileAs, // Expose new action
+    saveCurrentFileAs,
+    closeCurrentFile, // Expose new action
     markAsUnsaved,
     handleImagePaste,
     createNewFile,
-    getMarkdownContent, // Expose the getter
+    getMarkdownContent,
     setMarkdownContent,
     deleteMarkdownContent,
     getAllMarkdownContent,
-    deleteTempFile, // Expose the new action
-    saveDroppedImage, // Expose new action
+    deleteTempFile,
+    saveDroppedImage,
   };
 });
+

@@ -350,5 +350,30 @@ ipcMain.handle(IPC_EVENTS.WINDOW_CLOSE, () => {
   }
 });
 
+// --- Settings IPC Handlers ---
+
+ipcMain.handle(IPC_EVENTS.SETTINGS_READ, async () => {
+  const settingsPath = path.join(app.getPath("userData"), "settings.json");
+  try {
+    const data = await fs.readFile(settingsPath, "utf-8");
+    return JSON.parse(data);
+  } catch (error) {
+    // If file doesn't exist or error, return null (renderer will use defaults)
+    return null;
+  }
+});
+
+ipcMain.handle(IPC_EVENTS.SETTINGS_WRITE, async (event, settings: any) => {
+  const settingsPath = path.join(app.getPath("userData"), "settings.json");
+  try {
+    await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2), "utf-8");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to save settings:", error);
+    throw error;
+  }
+});
+
 // Test that the main process can receive messages from the renderer process
 ipcMain.on("ping", () => console.log("pong"));
+

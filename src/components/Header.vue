@@ -2,8 +2,13 @@
 import { useFileStore } from "../stores/fileStore";
 import { ElMessage } from "element-plus";
 // 确保这些图标已从 Element Plus 导入
-import { Minus, CopyDocument, Close } from "@element-plus/icons-vue";
+import { Minus, CopyDocument, Close, Document, FolderOpened, Box, Setting } from "@element-plus/icons-vue";
 import { ipcRenderer } from "../utils/ipcRenderer";
+import SettingsModal from "./SettingsModal.vue"; // Import SettingsModal
+import { ref } from "vue";
+
+const settingsModalVisible = ref(false);
+
 
 const fileStore = useFileStore();
 
@@ -40,10 +45,14 @@ const handleSaveFileAs = async () => {
     }
 };
 
-const handleCloseFile = () => {
-    ElMessage.info("Close File clicked - not implemented yet.");
-    // TODO: Implement fileStore.closeCurrentFile();
+const handleCloseFile = async () => {
+    await fileStore.closeCurrentFile();
 };
+
+const handleOpenSettings = () => {
+    settingsModalVisible.value = true;
+};
+
 
 // 实际的窗口控制函数
 const handleMinimize = () => {
@@ -64,38 +73,42 @@ const handleClose = () => {
             <el-menu mode="horizontal" :ellipsis="false" class="header-menu">
                 <el-sub-menu index="1">
                     <template #title>File</template>
-                    <el-menu-item index="1-1" @click="handleNewFile"
-                        >New</el-menu-item
-                    >
-                    <el-menu-item index="1-2" @click="handleOpenFile"
-                        >Open</el-menu-item
-                    >
+                    <el-menu-item index="1-1" @click="handleNewFile">
+                        <el-icon><Document /></el-icon>New
+                    </el-menu-item>
+                    <el-menu-item index="1-2" @click="handleOpenFile">
+                        <el-icon><FolderOpened /></el-icon>Open
+                    </el-menu-item>
                     <el-menu-item
                         index="1-3"
                         @click="handleSaveFile"
                         :disabled="!fileStore.currentFilePath"
-                        >Save</el-menu-item
                     >
+                        <el-icon><Box /></el-icon>Save
+                    </el-menu-item>
                     <el-menu-item
                         index="1-4"
                         @click="handleSaveFileAs"
                         :disabled="!fileStore.currentFilePath"
-                        >Save As</el-menu-item
                     >
+                        <el-icon><Box /></el-icon>Save As
+                    </el-menu-item>
                     <el-menu-item
                         index="1-5"
                         @click="handleCloseFile"
                         :disabled="!fileStore.currentFilePath"
-                        >Close</el-menu-item
                     >
+                        <el-icon><Close /></el-icon>Close
+                    </el-menu-item>
                 </el-sub-menu>
-                <el-sub-menu index="2">
-                    <template #title>Settings</template>
-                    <el-menu-item index="2-1">Theme</el-menu-item>
-                    <el-menu-item index="2-2">Shortcuts</el-menu-item>
-                </el-sub-menu>
+                <el-menu-item index="2" @click="handleOpenSettings">
+                    <el-icon><Setting /></el-icon>Settings
+                </el-menu-item>
             </el-menu>
         </div>
+
+        <SettingsModal v-model="settingsModalVisible" />
+
 
         <div class="drag-spacer"></div>
 

@@ -67,6 +67,9 @@ export enum IPC_EVENTS {
   WINDOW_MINIMIZE = "window:minimize",
   WINDOW_MAXIMIZE = "window:maximize",
   WINDOW_CLOSE = "window:close",
+  // Settings
+  SETTINGS_READ = "settings:read",
+  SETTINGS_WRITE = "settings:write",
 }
 
 /**
@@ -112,4 +115,58 @@ export interface UIState {
   };
   // Add other UI-related states here
 }
+
+/**
+ * Represents the application settings.
+ */
+export interface NodeStyle {
+  backgroundColor: string;
+  borderColor: string;
+  borderWidth: number;
+  borderRadius: number;
+  textColor: string;
+}
+
+export interface SelectedNodeStyle {
+  backgroundColor: string;
+  borderColor: string;
+  borderWidth: number;
+  textColor: string;
+}
+
+export interface LineStyle {
+  stroke: string;
+  strokeWidth: number;
+  type: 'default' | 'straight' | 'step' | 'smoothstep' | 'bezier';
+}
+
+export interface BackgroundStyle {
+  color: string;
+  pattern: 'dots' | 'lines' | 'cross' | 'none';
+}
+
+export interface MindmapTheme {
+  id: string;
+  name: string;
+  nodeStyle: NodeStyle;
+  lineStyle: LineStyle;
+  backgroundStyle: BackgroundStyle;
+  selectedNodeStyle: SelectedNodeStyle;
+}
+
+/**
+ * Represents the application settings.
+ */
+export interface AppSettings {
+  theme: 'light' | 'dark' | 'system';
+  nodeStyle: NodeStyle;
+  selectedNodeStyle: SelectedNodeStyle;
+  lineStyle: LineStyle;
+  backgroundStyle: BackgroundStyle;
+  shortcuts: Record<string, string>; // Action ID -> Shortcut Key (e.g., "file:new": "Ctrl+N")
+  mindmapThemes: MindmapTheme[];
+  activeMindmapTheme: string | null;
+}
+
+
 
