@@ -217,7 +217,6 @@ const customStyle = computed(() => {
     box-shadow:
         0 0 0 2px var(--el-color-primary-light-5),
         0 4px 12px rgba(var(--el-color-primary-rgb), 0.2);
-    transform: translateY(-1px);
     z-index: 5;
 }
 

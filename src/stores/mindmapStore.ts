@@ -5,6 +5,8 @@ import { generateUuid } from "../utils/uuid"; // Import uuid generator
 import { useFileStore } from "./fileStore"; // Import fileStore
 
 import { useEditorStore } from "./editorStore";
+import { useSettingsStore } from "./settingsStore";
+
 
 import { MindmapNode, MindmapEdge } from "../types/shared";
 
@@ -62,11 +64,10 @@ export const useMindmapStore = defineStore("mindmap", () => {
     }
   };
 
-  // Constants for layout and estimated node sizes
+  // Constants for estimated node sizes
   const ESTIMATED_NODE_WIDTH = 150;
   const ESTIMATED_NODE_HEIGHT = 40;
-  const HORIZONTAL_GAP = 100;
-  const VERTICAL_GAP = 20;
+
 
   // Helper to find a node and its parent recursively
   const findNodeAndParent = (
@@ -285,9 +286,11 @@ export const useMindmapStore = defineStore("mindmap", () => {
   const applyLayout = () => {
     if (!rootNode.value) return;
 
-    const HORIZONTAL_GAP = 100;
-    const VERTICAL_GAP = 20;
+    const settingsStore = useSettingsStore();
+    const HORIZONTAL_GAP = settingsStore.settings.layoutStyle.horizontalGap;
+    const VERTICAL_GAP = settingsStore.settings.layoutStyle.verticalGap;
     const tempRoot = JSON.parse(JSON.stringify(rootNode.value));
+
 
     const subtreeHeightCache = new Map<string, number>();
 
@@ -443,6 +446,10 @@ export const useMindmapStore = defineStore("mindmap", () => {
 
     pushState(); // Save state before modification
 
+    const settingsStore = useSettingsStore();
+    const HORIZONTAL_GAP = settingsStore.settings.layoutStyle.horizontalGap;
+    const VERTICAL_GAP = settingsStore.settings.layoutStyle.verticalGap;
+
     const { node: parentNode } = findNodeAndParent(
       parentNodeId,
       rootNode.value,
@@ -491,6 +498,10 @@ export const useMindmapStore = defineStore("mindmap", () => {
     if (!rootNode.value) return;
 
     pushState(); // Save state before modification
+
+    const settingsStore = useSettingsStore();
+    const HORIZONTAL_GAP = settingsStore.settings.layoutStyle.horizontalGap;
+    const VERTICAL_GAP = settingsStore.settings.layoutStyle.verticalGap;
 
     const { node, parent: parentNode } = findNodeAndParent(
       nodeId,
@@ -545,6 +556,10 @@ export const useMindmapStore = defineStore("mindmap", () => {
 
     pushState();
 
+    const settingsStore = useSettingsStore();
+    const HORIZONTAL_GAP = settingsStore.settings.layoutStyle.horizontalGap;
+    const VERTICAL_GAP = settingsStore.settings.layoutStyle.verticalGap;
+
     const { node: parentNode } = findNodeAndParent(
       parentNodeId,
       rootNode.value,
@@ -596,6 +611,10 @@ export const useMindmapStore = defineStore("mindmap", () => {
     if (!rootNode.value) return;
 
     pushState();
+
+    const settingsStore = useSettingsStore();
+    const HORIZONTAL_GAP = settingsStore.settings.layoutStyle.horizontalGap;
+    const VERTICAL_GAP = settingsStore.settings.layoutStyle.verticalGap;
 
     const { node, parent: parentNode } = findNodeAndParent(
       nodeId,

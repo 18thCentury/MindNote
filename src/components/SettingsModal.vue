@@ -242,6 +242,16 @@ const patterns = [
                             </el-select>
                         </el-form-item>
                     </div>
+
+                    <el-divider content-position="left">Layout Style</el-divider>
+                    <div class="style-group">
+                        <el-form-item label="Horizontal Gap">
+                            <el-input-number v-model="localSettings.layoutStyle.horizontalGap" :min="50" :max="300" :step="10" />
+                        </el-form-item>
+                        <el-form-item label="Vertical Gap">
+                            <el-input-number v-model="localSettings.layoutStyle.verticalGap" :min="10" :max="100" :step="5" />
+                        </el-form-item>
+                    </div>
                 </el-form>
             </el-tab-pane>
 

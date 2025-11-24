@@ -30,6 +30,10 @@ const DEFAULT_SETTINGS: AppSettings = {
         color: "#f0f2f5",
         pattern: "dots",
     },
+    layoutStyle: {
+        horizontalGap: 100,
+        verticalGap: 20,
+    },
     shortcuts: {
         "file:new": "Ctrl+N",
         "file:open": "Ctrl+O",
@@ -56,6 +60,7 @@ export const useSettingsStore = defineStore("settings", () => {
                 if (savedSettings.selectedNodeStyle) settings.value.selectedNodeStyle = { ...DEFAULT_SETTINGS.selectedNodeStyle, ...savedSettings.selectedNodeStyle };
                 if (savedSettings.lineStyle) settings.value.lineStyle = { ...DEFAULT_SETTINGS.lineStyle, ...savedSettings.lineStyle };
                 if (savedSettings.backgroundStyle) settings.value.backgroundStyle = { ...DEFAULT_SETTINGS.backgroundStyle, ...savedSettings.backgroundStyle };
+                if (savedSettings.layoutStyle) settings.value.layoutStyle = { ...DEFAULT_SETTINGS.layoutStyle, ...savedSettings.layoutStyle };
                 if (savedSettings.shortcuts) settings.value.shortcuts = { ...DEFAULT_SETTINGS.shortcuts, ...savedSettings.shortcuts };
                 // Arrays and primitives are overwritten by spread above, which is fine for themes
             }
@@ -95,6 +100,7 @@ export const useSettingsStore = defineStore("settings", () => {
             selectedNodeStyle: { ...settings.value.selectedNodeStyle },
             lineStyle: { ...settings.value.lineStyle },
             backgroundStyle: { ...settings.value.backgroundStyle },
+            layoutStyle: { ...settings.value.layoutStyle },
         };
         settings.value.mindmapThemes.push(newTheme);
         settings.value.activeMindmapTheme = newTheme.id;
@@ -108,6 +114,7 @@ export const useSettingsStore = defineStore("settings", () => {
             settings.value.selectedNodeStyle = { ...theme.selectedNodeStyle };
             settings.value.lineStyle = { ...theme.lineStyle };
             settings.value.backgroundStyle = { ...theme.backgroundStyle };
+            settings.value.layoutStyle = { ...theme.layoutStyle };
             settings.value.activeMindmapTheme = themeId;
             ElMessage.success(`Theme "${theme.name}" applied.`);
         }
