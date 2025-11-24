@@ -21,7 +21,7 @@ async function cleanupActiveTempDir() {
   if (activeTempDir) {
     try {
       await fs.rm(activeTempDir, { recursive: true, force: true });
-      console.log(`Cleaned up temp directory: ${activeTempDir}`);
+      //console.log(`Cleaned up temp directory: ${activeTempDir}`);
     } catch (error) {
       console.error(
         `Failed to clean up temp directory: ${activeTempDir}`,
@@ -259,7 +259,7 @@ ipcMain.handle(IPC_EVENTS.FILE_NEW, async () => {
 // Placeholder for FILE_CLOSE
 ipcMain.handle(IPC_EVENTS.FILE_CLOSE, async () => {
   // Logic to handle closing a file, e.g., checking for unsaved changes
-  console.log("Handling FILE_CLOSE");
+  //console.log("Handling FILE_CLOSE");
   await cleanupActiveTempDir();
   return { success: true };
 });

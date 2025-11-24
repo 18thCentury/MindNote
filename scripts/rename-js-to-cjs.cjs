@@ -15,9 +15,9 @@ fs.readdir(directory, (err, files) => {
       const newPath = path.join(directory, file.replace('.js', '.cjs'));
       fs.rename(oldPath, newPath, err => {
         if (err) {
-          console.error(`Error renaming ${oldPath} to ${newPath}:`, err);
+          //console.error(`Error renaming ${oldPath} to ${newPath}:`, err);
         } else {
-          console.log(`Renamed ${oldPath} to ${newPath}`);
+          //console.log(`Renamed ${oldPath} to ${newPath}`);
         }
       });
     }

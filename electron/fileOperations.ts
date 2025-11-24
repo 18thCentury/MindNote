@@ -50,7 +50,7 @@ export async function unpackMnFile(mnFilePath: string): Promise<{
   const zip = new AdmZip(mnFilePath);
   zip.extractAllTo(tempDirPath, true);
 
-  console.log(`Unpacked ${mnFilePath} to ${tempDirPath}`);
+  //console.log(`Unpacked ${mnFilePath} to ${tempDirPath}`);
 
   const mapJsonContent = await readMarkdown(tempDirPath, "map.json");
   const mindmapData: MindmapNode = JSON.parse(mapJsonContent);
@@ -89,11 +89,11 @@ export async function packMnFile(
 
   await saveMapJson(tempDir, mindmapData);
 
-  console.log("packMnFile markdownFiles:", markdownFiles);
+  //console.log("packMnFile markdownFiles:", markdownFiles);
 
   for (const fileName in markdownFiles) {
     try {
-      console.log("save markdownFile:", fileName);
+      //console.log("save markdownFile:", fileName);
       await saveMarkdown(
         tempDir,
         path.join("text", fileName),
@@ -120,7 +120,7 @@ export async function packMnFile(
   }
 
   await fs.writeFile(mnFilePath, zip.toBuffer());
-  console.log(`Packed data to ${mnFilePath}`);
+  //console.log(`Packed data to ${mnFilePath}`);
 }
 
 export async function readMarkdown(
