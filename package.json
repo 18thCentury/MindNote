@@ -19,11 +19,36 @@
   "license": "ISC",
   "type": "module",
   "build": {
+    "appId": "com.mindnote.app",
+    "productName": "MindNote",
     "files": [
       "package.json",
       "dist/**/*",
-      "dist-electron/**/*.js"
-    ]
+      "dist-electron/**/*.js",
+      "!node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!node_modules/**/{test,__tests__,tests,powered-test,example,examples}",
+      "!node_modules/**/*.d.ts",
+      "!node_modules/.bin",
+      "!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}",
+      "!.editorconfig",
+      "!**/._*",
+      "!**/{.DS_Store,.git,.hg,.svn,CVS,RCS,SCCS,.gitignore,.gitattributes}",
+      "!**/{__pycache__,thumbs.db,.flowconfig,.idea,.vs,.nyc_output}",
+      "!**/{appveyor.yml,.travis.yml,circle.yml}",
+      "!**/{npm-debug.log,yarn.lock,.yarn-integrity,.yarn-metadata.json}"
+    ],
+    "asar": true,
+    "compression": "maximum",
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "directories": {
+      "output": "release"
+    }
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
@@ -52,6 +77,7 @@
     "electron-builder": "^26.0.12",
     "lodash.debounce": "^4.0.8",
     "sass": "^1.93.2",
+    "terser": "^5.44.1",
     "tsc-alias": "^1.8.16",
     "typescript": "^5.9.3",
     "vite": "^7.1.12",

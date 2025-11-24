@@ -126,7 +126,7 @@ const patterns = [
     <el-dialog
         :model-value="modelValue"
         title="Settings"
-        width="600px"
+        width="860px"
         @close="handleClose"
         :close-on-click-modal="false"
         @keydown="handleKeydown"
