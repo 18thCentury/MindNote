@@ -5,12 +5,19 @@ import { ElMessage } from "element-plus";
 import { Minus, CopyDocument, Close, Document, FolderOpened, Box, Setting } from "@element-plus/icons-vue";
 import { ipcRenderer } from "../utils/ipcRenderer";
 import SettingsModal from "./SettingsModal.vue"; // Import SettingsModal
-import { ref } from "vue";
+import { ref, computed } from "vue";
 
 const settingsModalVisible = ref(false);
 
 
 const fileStore = useFileStore();
+
+const currentFileName = computed(() => {
+    if (!fileStore.currentFilePath) return "";
+    // Handle both Windows and Unix paths
+    const path = fileStore.currentFilePath.replace(/\\/g, "/");
+    return path.split("/").pop() || "";
+});
 
 const handleNewFile = async () => {
     await fileStore.createNewFile();
@@ -111,6 +118,12 @@ const handleClose = () => {
 
 
         <div class="drag-spacer"></div>
+        
+        <div class="file-name" v-if="currentFileName">
+            {{ currentFileName }}
+        </div>
+
+        <div class="drag-spacer"></div>
 
         <div class="window-controls">
             <el-icon
@@ -200,5 +213,15 @@ const handleClose = () => {
 :deep(.el-menu-item),
 :deep(.el-sub-menu__title) {
     -webkit-app-region: no-drag;
+}
+
+.file-name {
+    font-size: 0.9em;
+    color: var(--el-text-color-regular);
+    -webkit-app-region: drag;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 300px;
 }
 </style>

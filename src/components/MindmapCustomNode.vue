@@ -3,6 +3,7 @@ import { computed, ref, nextTick, onMounted, onBeforeUnmount } from "vue";
 import { Handle, Position } from "@vue-flow/core";
 import { useMindmapStore } from "../stores/mindmapStore";
 import { useFileStore } from "../stores/fileStore";
+import { Document } from "@element-plus/icons-vue"; // Import Document icon
 
 import { useEditorStore } from "../stores/editorStore";
 import { useUIStore } from "../stores/uiStore"; // Import uiStore
@@ -99,6 +100,11 @@ const firstImage = computed(() => {
     return null;
 });
 
+const hasMarkdownContent = computed(() => {
+    const content = fileStore.getMarkdownContent(props.data.markdown);
+    return content && content.trim().length > 0;
+});
+
 const getImageUrl = (imageName: string) => {
     if (fileStore.tempDir) {
         // IMPORTANT: Electron requires absolute paths with the file:// protocol for renderer access.
@@ -179,7 +185,10 @@ const customStyle = computed(() => {
             />
         </div>
 
-        <div v-if="!isEditing">{{ data.text }}</div>
+        <div v-if="!isEditing" class="node-content">
+            <span class="node-text">{{ data.text }}</span>
+            <el-icon v-if="hasMarkdownContent" class="node-icon"><Document /></el-icon>
+        </div>
         <input
             v-else
             v-model="editText"
@@ -320,5 +329,17 @@ const customStyle = computed(() => {
     max-height: 80px;
     border-radius: 4px;
     object-fit: cover;
+}
+
+.node-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.node-icon {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
 }
 </style>
