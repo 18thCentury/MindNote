@@ -836,7 +836,7 @@ watch(
                 />
             </template>
             <Background 
-                :pattern-color="settingsStore.settings.backgroundStyle.pattern === 'none' ? 'transparent' : '#aaa'"
+                :pattern-color="settingsStore.settings.backgroundStyle.pattern === 'none' ? 'transparent' : 'var(--el-border-color-dark)'"
                 :gap="20" 
                 :size="1" 
                 :variant="settingsStore.settings.backgroundStyle.pattern === 'dots' ? 'dots' : (settingsStore.settings.backgroundStyle.pattern === 'lines' ? 'lines' : 'dots')"
@@ -899,6 +899,7 @@ watch(
     width: 100%;
     height: 100%;
     position: relative;
+    background-color: var(--app-bg-color);
 }
 
 .drop-indicator {
@@ -914,8 +915,9 @@ watch(
 
 .selection-box {
     position: absolute;
-    background-color: rgba(0, 123, 255, 0.1);
-    border: 1px solid rgba(0, 123, 255, 0.5);
+    background-color: var(--el-color-primary-light-9);
+    border: 1px solid var(--el-color-primary);
+    opacity: 0.8; /* Ensure it's not too solid */
     pointer-events: none;
     z-index: 1000;
 }

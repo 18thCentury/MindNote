@@ -192,7 +192,8 @@ const handleClose = () => {
     transition: background-color 0.2s;
 
     &:hover {
-        background-color: var(--el-color-info-light-7);
+        background-color: var(--el-color-primary-light-9);
+        color: var(--el-color-primary);
     }
 }
 

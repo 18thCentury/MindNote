@@ -194,20 +194,22 @@ const customStyle = computed(() => {
 
 <style scoped>
 /* ... existing styles ... */
+/* ... existing styles ... */
 .custom-node {
     padding: 8px 12px;
     min-width: 80px;
     text-align: center;
     position: relative;
-    background-color: var(--el-color-white);
+    background-color: var(--panel-bg-color);
     border: 1px solid var(--el-border-color);
     border-radius: 6px; /* Slightly more rounded */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Softer shadow */
+    box-shadow: var(--app-shadow); /* Softer shadow */
     cursor: pointer;
     transition:
         box-shadow 0.2s ease-in-out,
         border-color 0.2s ease-in-out,
         transform 0.1s ease;
+    color: var(--el-text-color-primary);
 }
 
 /* ... */
@@ -216,16 +218,16 @@ const customStyle = computed(() => {
     background-color: var(--el-color-primary-light-9);
     box-shadow:
         0 0 0 2px var(--el-color-primary-light-5),
-        0 4px 12px rgba(var(--el-color-primary-rgb), 0.2);
+        var(--app-shadow-md);
     z-index: 5;
 }
 
 .custom-node.drop-target-node {
-    border: 2px dashed var(--el-color-success);
-    background-color: var(--el-color-success-light-9);
+    border: 2px dashed var(--el-color-primary);
+    background-color: var(--el-color-primary-light-9);
     box-shadow:
-        0 0 0 4px var(--el-color-success-light-5),
-        0 4px 12px rgba(var(--el-color-success-rgb), 0.2);
+        0 0 0 4px var(--el-color-primary-light-5),
+        var(--app-shadow-md);
     transform: scale(1.02);
     z-index: 10;
 }
@@ -237,7 +239,7 @@ const customStyle = computed(() => {
     font-weight: bold; /* Bold text */
     border-color: var(--el-color-primary);
     border-width: 2px;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--app-shadow-lg);
 }
 
 .collapse-button {
@@ -248,8 +250,8 @@ const customStyle = computed(() => {
     width: 16px; /* Larger touch target */
     height: 16px;
     border-radius: 50%;
-    border: 1px solid var(--el-border-color-lighter);
-    background-color: var(--el-color-white);
+    border: 1px solid var(--el-border-color-light);
+    background-color: var(--panel-bg-color);
     color: var(--el-text-color-secondary);
     cursor: pointer;
     display: flex;
@@ -258,7 +260,7 @@ const customStyle = computed(() => {
     font-size: 12px;
     line-height: 1;
     z-index: 10;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--app-shadow-sm);
     transition: all 0.2s ease;
     padding: 0;
 }

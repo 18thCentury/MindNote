@@ -100,23 +100,39 @@ onBeforeUnmount(() => {
 .main-view-container {
     height: 100%;
     display: flex;
-    border-top: 1px solid var(--el-border-color-light);
+    /* border-top removed as it's handled by header border-bottom */
 }
 
 .mindmap-area {
     padding: 0px;
-    overflow: hidden; // vue-flow 内部处理滚动
-    position: relative; // For splitter
+    overflow: hidden;
+    position: relative;
+    background-color: var(--app-bg-color);
 }
 
 .splitter {
-    width: 5px;
+    width: 1px; /* Thinner, more modern splitter */
     cursor: col-resize;
-    background-color: var(--el-border-color-lighter);
+    background-color: var(--el-border-color);
     flex-shrink: 0;
     z-index: 10;
-    &:hover {
+    transition: background-color 0.2s, width 0.2s;
+    position: relative;
+    
+    /* Invisible hit area for easier grabbing */
+    &::after {
+        content: '';
+        position: absolute;
+        left: -4px;
+        right: -4px;
+        top: 0;
+        bottom: 0;
+        z-index: 1;
+    }
+
+    &:hover, &:active {
         background-color: var(--el-color-primary);
+        width: 2px; /* Visual feedback */
     }
 }
 
