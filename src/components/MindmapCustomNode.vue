@@ -43,7 +43,16 @@ onMounted(() => {
     if (nodeEl.value) {
         resizeObserver = new ResizeObserver((entries) => {
             for (const entry of entries) {
-                const { width, height } = entry.contentRect;
+                let width, height;
+                if (entry.borderBoxSize && entry.borderBoxSize.length > 0) {
+                    width = entry.borderBoxSize[0].inlineSize;
+                    height = entry.borderBoxSize[0].blockSize;
+                } else {
+                    // Fallback for older browsers or if borderBoxSize is missing
+                    width = entry.contentRect.width;
+                    height = entry.contentRect.height;
+                    // Adjust for padding/border if needed, but borderBoxSize should be there in Electron/Modern Browsers
+                }
                 mindmapStore.setNodeDimensions(props.data.id, {
                     width,
                     height,
