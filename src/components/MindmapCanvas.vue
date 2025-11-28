@@ -658,8 +658,14 @@ const handleContextMenuCommand = async (command: string) => {
     if (!contextMenuNodeId.value) return;
     switch (command) {
         case "delete-node":
-            mindmapStore.deleteNode(contextMenuNodeId.value);
-            ElMessage.success("Node deleted");
+            // If the right-clicked node is part of the selection, delete all selected nodes
+            if (mindmapStore.selectedNodeIds.includes(contextMenuNodeId.value)) {
+                mindmapStore.deleteNode();
+            } else {
+                // Otherwise, delete only the right-clicked node
+                mindmapStore.deleteNode(contextMenuNodeId.value);
+            }
+            ElMessage.success("Node(s) deleted");
             break;
         case "add-image":
             await addImageToNode(contextMenuNodeId.value);
@@ -691,7 +697,17 @@ const addImageToNode = async (nodeId: string) => {
 };
 
 const handleKeyDown = (event: KeyboardEvent) => {
-    if (!props.selectedNodeId || editorStore.isTextInputActive) return;
+    if (editorStore.isTextInputActive) return;
+    
+    // Delete Node
+    if (event.key === "Delete" || event.key === "Backspace") {
+        event.preventDefault();
+        mindmapStore.deleteNode();
+        return;
+    }
+
+    if (!props.selectedNodeId) return;
+
     if (event.key === "Tab") {
         event.preventDefault();
         mindmapStore.addChildNode(props.selectedNodeId);

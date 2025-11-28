@@ -767,10 +767,14 @@ export const useMindmapStore = defineStore("mindmap", () => {
     // Actually, if we delete a parent, the child is gone too. 
     // So we should check if a node still exists before trying to delete it.
     for (const id of validIdsToDelete) {
+      console.log(`Attempting to delete node: ${id}`);
       // Check if node still exists (it might have been deleted as a child of a previous node)
       const { node } = findNodeAndParent(id, currentRoot);
       if (node) {
+        console.log(`Node ${id} found, deleting...`);
         deleteSingleNode(id);
+      } else {
+        console.log(`Node ${id} not found (already deleted?)`);
       }
     }
 
