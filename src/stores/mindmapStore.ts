@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import debounce from "lodash.debounce";
 import { generateUuid } from "../utils/uuid"; // Import uuid generator
 import { useFileStore } from "./fileStore"; // Import fileStore
@@ -8,7 +8,7 @@ import { useEditorStore } from "./editorStore";
 import { useSettingsStore } from "./settingsStore";
 
 
-import { MindmapNode, MindmapEdge } from "../types/shared";
+import { MindmapNode, MindmapEdge } from "../types/shared_types";
 
 export const useMindmapStore = defineStore("mindmap", () => {
   const rootNode = ref<MindmapNode | null>(null); // 当前思维导图的实际根节点
@@ -439,6 +439,16 @@ export const useMindmapStore = defineStore("mindmap", () => {
       debouncedApplyLayout();
     }
   };
+
+  // Watch for layout setting changes and re-apply layout
+  const settingsStore = useSettingsStore();
+  watch(
+    () => settingsStore.settings.layoutStyle,
+    () => {
+      debouncedApplyLayout();
+    },
+    { deep: true }
+  );
 
   // Action: 添加子节点
   const addChildNode = (parentNodeId: string, text: string = "新子节点") => {

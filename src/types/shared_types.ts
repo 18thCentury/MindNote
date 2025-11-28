@@ -22,6 +22,17 @@ export interface MindmapNode {
     y: number;
   };
   type?: string; // e.g., 'root', 'default', 'child' for custom node types
+  draggable?: boolean; // Whether the node can be dragged
+}
+
+/**
+ * Represents a connection between two nodes in vue-flow.
+ */
+export interface MindmapEdge {
+  id: string;
+  source: string;
+  target: string;
+  // Other vue-flow edge properties
 }
 
 /**

@@ -186,8 +186,8 @@ const customStyle = computed(() => {
         </div>
 
         <div v-if="!isEditing" class="node-content">
-            <span class="node-text">{{ data.text }}</span>
             <el-icon v-if="hasMarkdownContent" class="node-icon"><Document /></el-icon>
+            <span class="node-text">{{ data.text }}</span>
         </div>
         <input
             v-else
