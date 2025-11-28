@@ -6,6 +6,7 @@ import { useMindmapStore } from "../stores/mindmapStore";
 import { useEditorStore } from "../stores/editorStore";
 import { useFileStore } from "../stores/fileStore";
 import { ipcRenderer } from "../utils/ipcRenderer";
+import { Document, FolderOpened } from "@element-plus/icons-vue";
 
 const mindmapStore = useMindmapStore();
 const editorStore = useEditorStore();
@@ -70,7 +71,25 @@ const handleEditorContentChanged = (content: string) => {
     editorStore.updateMarkdownContent(content);
 };
 
+const handleGlobalKeydown = (e: KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'n') {
+            e.preventDefault();
+            fileStore.createNewFile();
+        }
+        if (e.key === 'o') {
+            e.preventDefault();
+            fileStore.openMnFile();
+        }
+    }
+};
+
+onMounted(() => {
+    window.addEventListener('keydown', handleGlobalKeydown);
+});
+
 onBeforeUnmount(() => {
+    window.removeEventListener('keydown', handleGlobalKeydown);
     document.removeEventListener("mousemove", handleMouseMove);
     document.removeEventListener("mouseup", handleMouseUp);
 });
@@ -84,6 +103,19 @@ onBeforeUnmount(() => {
                 @node-selected="handleNodeSelected"
                 :selectedNodeId="mindmapStore.selectedNodeId"
             />
+            <div v-if="!fileStore.currentFilePath" class="welcome-overlay">
+                <div class="welcome-content">
+                    <h1>MindNote</h1>
+                    <div class="actions">
+                        <el-button type="primary" size="large" @click="fileStore.createNewFile">
+                            <el-icon class="el-icon--left"><Document /></el-icon> New MindNote (Ctrl+N)
+                        </el-button>
+                        <el-button size="large" @click="fileStore.openMnFile">
+                            <el-icon class="el-icon--left"><FolderOpened /></el-icon> Open MindNote (Ctrl+O)
+                        </el-button>
+                    </div>
+                </div>
+            </div>
         </el-aside>
         <div class="splitter" @mousedown="handleMouseDown"></div>
         <el-main class="markdown-editor-area">
@@ -108,6 +140,37 @@ onBeforeUnmount(() => {
     overflow: hidden;
     position: relative;
     background-color: var(--app-bg-color);
+}
+
+.welcome-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--app-bg-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+}
+
+.welcome-content {
+    text-align: center;
+    
+    h1 {
+        font-size: 2.5em;
+        color: var(--el-text-color-primary);
+        margin-bottom: 40px;
+        font-weight: 300;
+        letter-spacing: 2px;
+    }
+
+    .actions {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+    }
 }
 
 .splitter {
