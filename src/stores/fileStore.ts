@@ -131,6 +131,29 @@ export const useFileStore = defineStore("file", () => {
     }
   };
 
+  // Action: 保存拖放的图片
+  const saveDroppedImage = async (file: File): Promise<string> => {
+    if (!tempDir.value) throw new Error("No file open");
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const base64Data = e.target?.result as string;
+          const imageName = await ipcRenderer.invoke(
+            IPC_EVENTS.IMAGE_SAVE,
+            tempDir.value,
+            base64Data,
+          );
+          resolve(imageName);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    });
+  };
+
   // Action: 创建新文件
   const createNewFile = async () => {
     try {
@@ -219,6 +242,35 @@ export const useFileStore = defineStore("file", () => {
     }
   };
 
+  // Action: 关闭当前文件
+  const closeCurrentFile = async () => {
+    if (!tempDir.value) return;
+
+    // Check for unsaved changes? (Maybe later, for now just close)
+
+    try {
+      await ipcRenderer.invoke(IPC_EVENTS.FILE_CLOSE);
+
+      // Reset state
+      currentFilePath.value = null;
+      tempDir.value = null;
+      allMarkdownContents.value = {};
+      saveStatus.value = "saved";
+
+      // Clear other stores
+      const mindmapStore = useMindmapStore();
+      mindmapStore.setMindmapData(null); // Reset to empty state
+
+      const editorStore = useEditorStore();
+      editorStore.setMarkdownContent("", "");
+
+      ElMessage.success("File closed.");
+    } catch (error) {
+      console.error("Failed to close file:", error);
+      ElMessage.error("Failed to close file.");
+    }
+  };
+
   return {
     currentFilePath,
     saveStatus,
@@ -226,14 +278,17 @@ export const useFileStore = defineStore("file", () => {
     isFileOpen,
     openMnFile,
     saveCurrentFile,
-    saveCurrentFileAs, // Expose new action
+    saveCurrentFileAs,
+    closeCurrentFile, // Expose new action
     markAsUnsaved,
     handleImagePaste,
     createNewFile,
-    getMarkdownContent, // Expose the getter
+    getMarkdownContent,
     setMarkdownContent,
     deleteMarkdownContent,
     getAllMarkdownContent,
-    deleteTempFile, // Expose the new action
+    deleteTempFile,
+    saveDroppedImage,
   };
 });
+

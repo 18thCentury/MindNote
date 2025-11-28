@@ -1,14 +1,145 @@
 // src/assets/styles/index.scss
 
-// 全局 SCSS 变量
+// Global SCSS Variables - Premium Modern Palette
 :root {
-  --el-color-primary: #409EFF;
-  --el-color-primary-light-9: #ecf5ff;
-  --el-color-info-light-9: #f4f4f5;
-  --el-text-color-primary: #303133;
-  --el-text-color-secondary: #909399;
-  --el-border-color-light: #ebeef5;
+  // Primary Color (Indigo-500)
+  --el-color-primary: #6366f1;
+  --el-color-primary-light-3: #818cf8;
+  --el-color-primary-light-5: #a5b4fc;
+  --el-color-primary-light-7: #c7d2fe;
+  --el-color-primary-light-8: #e0e7ff;
+  --el-color-primary-light-9: #eef2ff;
+  --el-color-primary-dark-2: #4f46e5;
+
+  // Background Colors
+  --app-bg-color: #f8fafc; // Slate-50
+  --panel-bg-color: #ffffff; // White
+  --secondary-bg-color: #f1f5f9; // Slate-100
+
+  // Text Colors
+  --el-text-color-primary: #1e293b; // Slate-800
+  --el-text-color-regular: #334155; // Slate-700
+  --el-text-color-secondary: #64748b; // Slate-500
+  --el-text-color-placeholder: #94a3b8; // Slate-400
+  --el-text-color-disabled: #cbd5e1; // Slate-300
+
+  // Border Colors
+  --el-border-color: #e2e8f0; // Slate-200
+  --el-border-color-light: #f1f5f9; // Slate-100
+  --el-border-color-lighter: #f8fafc; // Slate-50
+  --el-border-color-dark: #cbd5e1; // Slate-300
+
+  // Shadows
+  --app-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --app-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --app-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --app-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+  // Other Element Plus Overrides
   --el-color-white: #ffffff;
+  --el-color-success: #22c55e; // Green-500
+  --el-color-warning: #f59e0b; // Amber-500
+  --el-color-danger: #ef4444; // Red-500
+  --el-color-info: #64748b; // Slate-500
+
+  // Info variants
+  --el-color-info-light-7: #cbd5e1;
+  --el-color-info-light-8: #e2e8f0;
+  --el-color-info-light-9: #f1f5f9;
+
+  // Element Plus Background Mappings
+  --el-bg-color: var(--panel-bg-color);
+  --el-bg-color-overlay: var(--panel-bg-color);
+  --el-bg-color-page: var(--app-bg-color);
 }
 
-// 可以添加其他全局样式或混入
+// Dark Mode Overrides
+html.dark {
+  // Background Colors
+  --app-bg-color: #0f172a; // Slate-900
+  --panel-bg-color: #1e293b; // Slate-800
+  --secondary-bg-color: #334155; // Slate-700
+
+  // Text Colors
+  --el-text-color-primary: #f1f5f9; // Slate-100
+  --el-text-color-regular: #e2e8f0; // Slate-200
+  --el-text-color-secondary: #94a3b8; // Slate-400
+  --el-text-color-placeholder: #64748b; // Slate-500
+  --el-text-color-disabled: #475569; // Slate-600
+
+  // Border Colors
+  --el-border-color: #334155; // Slate-700
+  --el-border-color-light: #1e293b; // Slate-800
+  --el-border-color-lighter: #0f172a; // Slate-900
+  --el-border-color-dark: #475569; // Slate-600
+
+  // Shadows (Lighter shadows for dark mode)
+  --app-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --app-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+  --app-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  --app-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.3);
+
+  // Element Plus Overrides
+  --el-color-white: #1e293b; // Match panel-bg-color
+
+  // Info variants (Darker for dark mode)
+  --el-color-info-light-7: #475569;
+  --el-color-info-light-8: #334155;
+  --el-color-info-light-9: #1e293b;
+}
+
+// Global Reset & Base Styles
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: var(--app-bg-color);
+  color: var(--el-text-color-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// Global Utility Classes
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.cursor-grab {
+  cursor: grab;
+}
+
+.cursor-grabbing {
+  cursor: grabbing;
+}
+
+.cursor-col-resize {
+  cursor: col-resize;
+}
+
+.cursor-text {
+  cursor: text;
+}
+
+// Scrollbar Styling
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--el-border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--el-text-color-disabled);
+}

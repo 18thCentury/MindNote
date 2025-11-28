@@ -21,7 +21,7 @@ async function cleanupActiveTempDir() {
   if (activeTempDir) {
     try {
       await fs.rm(activeTempDir, { recursive: true, force: true });
-      console.log(`Cleaned up temp directory: ${activeTempDir}`);
+      //console.log(`Cleaned up temp directory: ${activeTempDir}`);
     } catch (error) {
       console.error(
         `Failed to clean up temp directory: ${activeTempDir}`,
@@ -36,8 +36,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    //frame: false, // Set to false to remove the default window frame
-    //titleBarStyle: "hidden", // Hide the title bar but keep traffic light controls on macOS
+    frame: false, // Set to false to remove the default window frame
+    titleBarStyle: "hidden", // Hide the title bar but keep traffic light controls on macOS
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
@@ -259,7 +259,7 @@ ipcMain.handle(IPC_EVENTS.FILE_NEW, async () => {
 // Placeholder for FILE_CLOSE
 ipcMain.handle(IPC_EVENTS.FILE_CLOSE, async () => {
   // Logic to handle closing a file, e.g., checking for unsaved changes
-  console.log("Handling FILE_CLOSE");
+  //console.log("Handling FILE_CLOSE");
   await cleanupActiveTempDir();
   return { success: true };
 });
@@ -350,5 +350,30 @@ ipcMain.handle(IPC_EVENTS.WINDOW_CLOSE, () => {
   }
 });
 
+// --- Settings IPC Handlers ---
+
+ipcMain.handle(IPC_EVENTS.SETTINGS_READ, async () => {
+  const settingsPath = path.join(app.getPath("userData"), "settings.json");
+  try {
+    const data = await fs.readFile(settingsPath, "utf-8");
+    return JSON.parse(data);
+  } catch (error) {
+    // If file doesn't exist or error, return null (renderer will use defaults)
+    return null;
+  }
+});
+
+ipcMain.handle(IPC_EVENTS.SETTINGS_WRITE, async (event, settings: any) => {
+  const settingsPath = path.join(app.getPath("userData"), "settings.json");
+  try {
+    await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2), "utf-8");
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to save settings:", error);
+    throw error;
+  }
+});
+
 // Test that the main process can receive messages from the renderer process
 ipcMain.on("ping", () => console.log("pong"));
+

@@ -22,6 +22,17 @@ export interface MindmapNode {
     y: number;
   };
   type?: string; // e.g., 'root', 'default', 'child' for custom node types
+  draggable?: boolean; // Whether the node can be dragged
+}
+
+/**
+ * Represents a connection between two nodes in vue-flow.
+ */
+export interface MindmapEdge {
+  id: string;
+  source: string;
+  target: string;
+  // Other vue-flow edge properties
 }
 
 /**
@@ -67,6 +78,9 @@ export enum IPC_EVENTS {
   WINDOW_MINIMIZE = "window:minimize",
   WINDOW_MAXIMIZE = "window:maximize",
   WINDOW_CLOSE = "window:close",
+  // Settings
+  SETTINGS_READ = "settings:read",
+  SETTINGS_WRITE = "settings:write",
 }
 
 /**
@@ -106,5 +120,72 @@ export interface FileState {
 export interface UIState {
   selectedNodeId: string | null;
   pinnedNodeIds: string[]; // Array of node IDs that are pinned
+  imageViewer: {
+    visible: boolean;
+    imageUrl: string | null;
+  };
   // Add other UI-related states here
 }
+
+/**
+ * Represents the application settings.
+ */
+export interface NodeStyle {
+  backgroundColor: string;
+  borderColor: string;
+  borderWidth: number;
+  borderRadius: number;
+  textColor: string;
+}
+
+export interface SelectedNodeStyle {
+  backgroundColor: string;
+  borderColor: string;
+  borderWidth: number;
+  textColor: string;
+}
+
+export interface LineStyle {
+  stroke: string;
+  strokeWidth: number;
+  type: 'default' | 'straight' | 'step' | 'smoothstep' | 'bezier';
+}
+
+export interface BackgroundStyle {
+  color: string;
+  pattern: 'dots' | 'lines' | 'cross' | 'none';
+}
+
+export interface LayoutStyle {
+  horizontalGap: number;
+  verticalGap: number;
+}
+
+export interface MindmapTheme {
+  id: string;
+  name: string;
+  nodeStyle: NodeStyle;
+  lineStyle: LineStyle;
+  backgroundStyle: BackgroundStyle;
+  selectedNodeStyle: SelectedNodeStyle;
+  layoutStyle: LayoutStyle;
+}
+
+/**
+ * Represents the application settings.
+ */
+export interface AppSettings {
+  theme: 'light' | 'dark' | 'system';
+  nodeStyle: NodeStyle;
+  selectedNodeStyle: SelectedNodeStyle;
+  lineStyle: LineStyle;
+  backgroundStyle: BackgroundStyle;
+  layoutStyle: LayoutStyle;
+  shortcuts: Record<string, string>; // Action ID -> Shortcut Key (e.g., "file:new": "Ctrl+N")
+  mindmapThemes: MindmapTheme[];
+  activeMindmapTheme: string | null;
+}
+
+
+
+

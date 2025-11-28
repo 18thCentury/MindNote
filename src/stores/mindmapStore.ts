@@ -1,16 +1,18 @@
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import debounce from "lodash.debounce";
 import { generateUuid } from "../utils/uuid"; // Import uuid generator
 import { useFileStore } from "./fileStore"; // Import fileStore
 
 import { useEditorStore } from "./editorStore";
+import { useSettingsStore } from "./settingsStore";
 
-import { MindmapNode, MindmapEdge } from "../types/shared";
+
+import { MindmapNode, MindmapEdge } from "../types/shared_types";
 
 export const useMindmapStore = defineStore("mindmap", () => {
   const rootNode = ref<MindmapNode | null>(null); // 当前思维导图的实际根节点
-  const selectedNodeId = ref<string | null>(null); // 当前选中的节点ID
+  const selectedNodeIds = ref<string[]>([]); // 当前选中的节点ID列表
   const pinnedNodeIds = ref<string[]>([]); // Pin 的节点ID列表
   const viewRootNodeId = ref<string | null>(null); // 当前视图的根节点ID (用于局部显示)
   const collapsedNodeIds = ref<string[]>([]); // 新增：用于存储折叠的节点ID
@@ -19,11 +21,53 @@ export const useMindmapStore = defineStore("mindmap", () => {
     new Map(),
   );
 
-  // Constants for layout and estimated node sizes
+  // --- Undo/Redo State ---
+  const past = ref<string[]>([]); // Stack of past states (serialized rootNode)
+  const future = ref<string[]>([]); // Stack of future states (serialized rootNode)
+
+  const pushState = () => {
+    if (rootNode.value) {
+      past.value.push(JSON.stringify(rootNode.value));
+      future.value = []; // Clear future when a new action is taken
+    }
+  };
+
+  const undo = () => {
+    if (past.value.length === 0 || !rootNode.value) return;
+
+    // Push current state to future
+    future.value.push(JSON.stringify(rootNode.value));
+
+    // Pop from past and restore
+    const previousState = past.value.pop();
+    if (previousState) {
+      rootNode.value = JSON.parse(previousState);
+      debouncedApplyLayout(); // Re-apply layout
+      const fileStore = useFileStore();
+      fileStore.markAsUnsaved();
+    }
+  };
+
+  const redo = () => {
+    if (future.value.length === 0 || !rootNode.value) return;
+
+    // Push current state to past
+    past.value.push(JSON.stringify(rootNode.value));
+
+    // Pop from future and restore
+    const nextState = future.value.pop();
+    if (nextState) {
+      rootNode.value = JSON.parse(nextState);
+      debouncedApplyLayout(); // Re-apply layout
+      const fileStore = useFileStore();
+      fileStore.markAsUnsaved();
+    }
+  };
+
+  // Constants for estimated node sizes
   const ESTIMATED_NODE_WIDTH = 150;
   const ESTIMATED_NODE_HEIGHT = 40;
-  const HORIZONTAL_GAP = 100;
-  const VERTICAL_GAP = 20;
+
 
   // Helper to find a node and its parent recursively
   const findNodeAndParent = (
@@ -91,19 +135,34 @@ export const useMindmapStore = defineStore("mindmap", () => {
     return nodes;
   });
 
-  // Getter: 获取当前选中的节点对象 (从整个 mindmap 中查找)
-  const selectedNode = computed(() => {
-    if (!selectedNodeId.value || !rootNode.value) return null;
-    return findNodeAndParent(selectedNodeId.value, rootNode.value).node;
+  // Getter: 获取当前选中的节点对象列表
+  const selectedNodes = computed(() => {
+    if (selectedNodeIds.value.length === 0 || !rootNode.value) return [];
+    return selectedNodeIds.value
+      .map((id) => findNodeAndParent(id, rootNode.value).node)
+      .filter((n): n is MindmapNode => n !== null);
   });
 
-  // Getter for the path from the view root to the selected node
+  // Getter: 获取主要选中的节点（通常是最后一个选中的，用于单节点操作）
+  const primarySelectedNodeId = computed(() => {
+    if (selectedNodeIds.value.length === 0) return null;
+    return selectedNodeIds.value[selectedNodeIds.value.length - 1];
+  });
+
+  // Getter: 获取当前选中的单个节点 (兼容旧代码)
+  const selectedNode = computed(() => {
+    if (!primarySelectedNodeId.value || !rootNode.value) return null;
+    const { node } = findNodeAndParent(primarySelectedNodeId.value, rootNode.value);
+    return node;
+  });
+
+  // Getter for the path from the view root to the primary selected node
   const currentNodePath = computed(() => {
-    if (!selectedNodeId.value || !rootNode.value) return [];
+    if (!primarySelectedNodeId.value || !rootNode.value) return [];
 
     // 1. Find the full path from the actual root to the selected node
     const fullPath: MindmapNode[] = [];
-    let currentId = selectedNodeId.value;
+    let currentId = primarySelectedNodeId.value;
     while (currentId) {
       const { node, parent } = findNodeAndParent(currentId, rootNode.value);
       if (node) {
@@ -127,21 +186,90 @@ export const useMindmapStore = defineStore("mindmap", () => {
   });
 
   // Action: 设置思维导图数据
-  const setMindmapData = (data: MindmapNode) => {
+  const setMindmapData = (data: MindmapNode | null) => {
     rootNode.value = data; // Direct assignment for initial load
-    applyLayout(); // Apply layout immediately on initial data load
-    selectedNodeId.value = data.id; // 默认选中根节点
-    viewRootNodeId.value = data.id; // 默认视图根节点也是实际根节点
+    past.value = []; // Clear history on load
+    future.value = [];
 
-    // 如果 pinnedNodeIds 为空，则默认 pin 实际根节点
-    if (pinnedNodeIds.value.length === 0 && data.id) {
-      pinnedNodeIds.value.push(data.id);
+    if (data) {
+      applyLayout(); // Apply layout immediately on initial data load
+      selectedNodeIds.value = [data.id]; // 默认选中根节点
+      viewRootNodeId.value = data.id; // 默认视图根节点也是实际根节点
+
+      // 如果 pinnedNodeIds 为空，则默认 pin 实际根节点
+      if (pinnedNodeIds.value.length === 0 && data.id) {
+        pinnedNodeIds.value.push(data.id);
+      }
+    } else {
+      selectedNodeIds.value = [];
+      viewRootNodeId.value = null;
+      pinnedNodeIds.value = [];
+      nodeDimensions.value.clear();
     }
   };
 
-  // Action: 选中节点
+  // Action: 选中单一节点 (Clear others)
   const selectNode = (nodeId: string) => {
-    selectedNodeId.value = nodeId;
+    selectedNodeIds.value = [nodeId];
+  };
+
+  // Action: 切换节点选中状态 (Alt/Ctrl click)
+  const toggleNodeSelection = (nodeId: string) => {
+    const index = selectedNodeIds.value.indexOf(nodeId);
+    if (index > -1) {
+      selectedNodeIds.value.splice(index, 1);
+    } else {
+      selectedNodeIds.value.push(nodeId);
+    }
+  };
+
+  // Action: 添加节点到选中列表
+  const addNodeToSelection = (nodeId: string) => {
+    if (!selectedNodeIds.value.includes(nodeId)) {
+      selectedNodeIds.value.push(nodeId);
+    }
+  };
+
+  // Action: 清除所有选中
+  const clearSelection = () => {
+    selectedNodeIds.value = [];
+  };
+
+  // Action: 范围选择 (Shift click) - Select siblings between last selected and current
+  const selectRange = (targetNodeId: string) => {
+    if (!rootNode.value || selectedNodeIds.value.length === 0) {
+      selectNode(targetNodeId);
+      return;
+    }
+
+    const lastSelectedId = selectedNodeIds.value[selectedNodeIds.value.length - 1];
+    if (lastSelectedId === targetNodeId) return;
+
+    const { parent: targetParent } = findNodeAndParent(targetNodeId, rootNode.value);
+    const { parent: lastParent } = findNodeAndParent(lastSelectedId, rootNode.value);
+
+    // Only support range selection for siblings under the same parent
+    if (targetParent && lastParent && targetParent.id === lastParent.id) {
+      const siblings = targetParent.children;
+      const index1 = siblings.findIndex(n => n.id === lastSelectedId);
+      const index2 = siblings.findIndex(n => n.id === targetNodeId);
+
+      if (index1 !== -1 && index2 !== -1) {
+        const start = Math.min(index1, index2);
+        const end = Math.max(index1, index2);
+
+        // Add all nodes in range to selection
+        for (let i = start; i <= end; i++) {
+          addNodeToSelection(siblings[i].id);
+        }
+      } else {
+        // Fallback if indices weird
+        addNodeToSelection(targetNodeId);
+      }
+    } else {
+      // If not siblings, just add the target node
+      addNodeToSelection(targetNodeId);
+    }
   };
 
   // Action: Selects a node and triggers the pan event
@@ -165,11 +293,19 @@ export const useMindmapStore = defineStore("mindmap", () => {
   const applyLayout = () => {
     if (!rootNode.value) return;
 
-    const HORIZONTAL_GAP = 100;
-    const VERTICAL_GAP = 20;
+    const settingsStore = useSettingsStore();
+    const HORIZONTAL_GAP = settingsStore.settings.layoutStyle.horizontalGap;
+    const VERTICAL_GAP = settingsStore.settings.layoutStyle.verticalGap;
     const tempRoot = JSON.parse(JSON.stringify(rootNode.value));
 
+
+    const subtreeHeightCache = new Map<string, number>();
+
     const getSubtreeHeight = (node: MindmapNode): number => {
+      if (subtreeHeightCache.has(node.id)) {
+        return subtreeHeightCache.get(node.id)!;
+      }
+
       const mySize = nodeDimensions.value.get(node.id) || {
         width: 150,
         height: 40,
@@ -178,13 +314,17 @@ export const useMindmapStore = defineStore("mindmap", () => {
         collapsedNodeIds.value.includes(node.id) ||
         node.children.length === 0
       ) {
-        return mySize.height + VERTICAL_GAP;
+        const height = mySize.height + VERTICAL_GAP;
+        subtreeHeightCache.set(node.id, height);
+        return height;
       }
       let childrenHeight = 0;
       for (const child of node.children) {
         childrenHeight += getSubtreeHeight(child);
       }
-      return Math.max(mySize.height + VERTICAL_GAP, childrenHeight);
+      const height = Math.max(mySize.height + VERTICAL_GAP, childrenHeight);
+      subtreeHeightCache.set(node.id, height);
+      return height;
     };
 
     const positionNodes = (
@@ -208,8 +348,30 @@ export const useMindmapStore = defineStore("mindmap", () => {
 
       node.position = { x: myX, y: myY };
 
-      let cumulativeChildY = startY;
       if (!collapsedNodeIds.value.includes(node.id)) {
+        let childrenTotalHeight = 0;
+        for (const child of node.children) {
+          childrenTotalHeight += getSubtreeHeight(child);
+        }
+
+        // Calculate vertical offset to center children relative to parent
+        // If parent's subtree height is determined by its own height (plus gap),
+        // we might want to center the children block within that available space?
+        // Actually, `mySubtreeHeight` IS the total height occupied by this node and its children.
+        // `childrenTotalHeight` is the height of just the children stack.
+        // We want the center of the children stack to align with the center of the parent node.
+        // Parent center Y = myY + mySize.height / 2
+        // Children stack center Y = startChildY + childrenTotalHeight / 2
+        // So: startChildY = Parent Center Y - childrenTotalHeight / 2
+
+        // Let's verify with the existing logic:
+        // myY = startY + mySubtreeHeight / 2 - mySize.height / 2
+        // Parent Center Y = startY + mySubtreeHeight / 2
+        // So startChildY = (startY + mySubtreeHeight / 2) - childrenTotalHeight / 2
+        //                = startY + (mySubtreeHeight - childrenTotalHeight) / 2
+
+        let cumulativeChildY = startY + (mySubtreeHeight - childrenTotalHeight) / 2;
+
         for (const child of node.children) {
           positionNodes(child, level + 1, cumulativeChildY);
           cumulativeChildY += getSubtreeHeight(child);
@@ -285,9 +447,25 @@ export const useMindmapStore = defineStore("mindmap", () => {
     }
   };
 
+  // Watch for layout setting changes and re-apply layout
+  const settingsStore = useSettingsStore();
+  watch(
+    () => settingsStore.settings.layoutStyle,
+    () => {
+      debouncedApplyLayout();
+    },
+    { deep: true }
+  );
+
   // Action: 添加子节点
   const addChildNode = (parentNodeId: string, text: string = "新子节点") => {
     if (!rootNode.value) return;
+
+    pushState(); // Save state before modification
+
+    const settingsStore = useSettingsStore();
+    const HORIZONTAL_GAP = settingsStore.settings.layoutStyle.horizontalGap;
+    const VERTICAL_GAP = settingsStore.settings.layoutStyle.verticalGap;
 
     const { node: parentNode } = findNodeAndParent(
       parentNodeId,
@@ -327,6 +505,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
       selectAndPanToNode(newNode.id); // Select and pan to the new node
 
       // Initialize markdown content for the new node in fileStore
+      const fileStore = useFileStore();
       fileStore.setMarkdownContent(newNode.markdown, "");
     }
   };
@@ -334,6 +513,12 @@ export const useMindmapStore = defineStore("mindmap", () => {
   // Action: 添加兄弟节点
   const addSiblingNode = (nodeId: string, text: string = "新兄弟节点") => {
     if (!rootNode.value) return;
+
+    pushState(); // Save state before modification
+
+    const settingsStore = useSettingsStore();
+    const HORIZONTAL_GAP = settingsStore.settings.layoutStyle.horizontalGap;
+    const VERTICAL_GAP = settingsStore.settings.layoutStyle.verticalGap;
 
     const { node, parent: parentNode } = findNodeAndParent(
       nodeId,
@@ -369,11 +554,122 @@ export const useMindmapStore = defineStore("mindmap", () => {
         selectAndPanToNode(newNode.id); // Select and pan to the new node
 
         // Initialize markdown content for the new node in fileStore
+        const fileStore = useFileStore();
         fileStore.setMarkdownContent(newNode.markdown, "");
       }
-    } else if (node && !parentNode && tempRoot.id === nodeId) {
+    } else if (node && !parentNode) {
       // If the selected node is the root and has no parent, we can't add a sibling in the current structure.
       console.warn("Cannot add sibling to root node without a parent.");
+    }
+  };
+
+  // Action: 添加带图片的子节点
+  const addChildNodeWithImage = (
+    parentNodeId: string,
+    imageName: string,
+    text: string = "New Image",
+  ) => {
+    if (!rootNode.value) return;
+
+    pushState();
+
+    const settingsStore = useSettingsStore();
+    const HORIZONTAL_GAP = settingsStore.settings.layoutStyle.horizontalGap;
+    const VERTICAL_GAP = settingsStore.settings.layoutStyle.verticalGap;
+
+    const { node: parentNode } = findNodeAndParent(
+      parentNodeId,
+      rootNode.value,
+    );
+
+    if (parentNode) {
+      const parentSize = nodeDimensions.value.get(parentNodeId) || {
+        width: ESTIMATED_NODE_WIDTH,
+        height: ESTIMATED_NODE_HEIGHT,
+      };
+      const initialX =
+        (parentNode.position?.x || 0) + parentSize.width + HORIZONTAL_GAP;
+      let initialY = parentNode.position?.y || 0;
+
+      if (parentNode.children.length > 0) {
+        const lastChild = parentNode.children[parentNode.children.length - 1];
+        const lastChildSize = nodeDimensions.value.get(lastChild.id) || {
+          width: ESTIMATED_NODE_WIDTH,
+          height: ESTIMATED_NODE_HEIGHT,
+        };
+        initialY =
+          (lastChild.position?.y || 0) + lastChildSize.height + VERTICAL_GAP;
+      }
+
+      const newNode: MindmapNode = {
+        id: generateUuid(),
+        text: text,
+        children: [],
+        markdown: `${generateUuid()}.md`,
+        images: [imageName],
+        position: { x: initialX, y: initialY },
+      };
+      parentNode.children.push(newNode);
+      debouncedApplyLayout();
+      selectAndPanToNode(newNode.id);
+      const fileStore = useFileStore();
+      fileStore.setMarkdownContent(newNode.markdown, "");
+      fileStore.markAsUnsaved();
+    }
+  };
+
+  // Action: 添加带图片的兄弟节点
+  const addSiblingNodeWithImage = (
+    nodeId: string,
+    imageName: string,
+    position: "before" | "after",
+    text: string = "New Image",
+  ) => {
+    if (!rootNode.value) return;
+
+    pushState();
+
+    const settingsStore = useSettingsStore();
+    const HORIZONTAL_GAP = settingsStore.settings.layoutStyle.horizontalGap;
+    const VERTICAL_GAP = settingsStore.settings.layoutStyle.verticalGap;
+
+    const { node, parent: parentNode } = findNodeAndParent(
+      nodeId,
+      rootNode.value,
+    );
+
+    if (node && parentNode) {
+      const nodeSize = nodeDimensions.value.get(nodeId) || {
+        width: ESTIMATED_NODE_WIDTH,
+        height: ESTIMATED_NODE_HEIGHT,
+      };
+      const parentSize = nodeDimensions.value.get(parentNode.id) || {
+        width: ESTIMATED_NODE_WIDTH,
+        height: ESTIMATED_NODE_HEIGHT,
+      };
+      const initialX =
+        (parentNode.position?.x || 0) + parentSize.width + HORIZONTAL_GAP;
+      const initialY = (node.position?.y || 0) + nodeSize.height + VERTICAL_GAP;
+
+      const newNode: MindmapNode = {
+        id: generateUuid(),
+        text: text,
+        children: [],
+        markdown: `${generateUuid()}.md`,
+        images: [imageName],
+        position: { x: initialX, y: initialY },
+      };
+
+      const index = parentNode.children.findIndex((n) => n.id === node.id);
+      if (index !== -1) {
+        const insertIndex = position === "before" ? index : index + 1;
+        parentNode.children.splice(insertIndex, 0, newNode);
+        debouncedApplyLayout();
+        selectAndPanToNode(newNode.id);
+        const fileStore = useFileStore();
+        fileStore.setMarkdownContent(newNode.markdown, "");
+        fileStore.markAsUnsaved();
+      }
     }
   };
 
@@ -382,92 +678,138 @@ export const useMindmapStore = defineStore("mindmap", () => {
     if (!rootNode.value) return;
     const { node } = findNodeAndParent(nodeId, rootNode.value);
     if (node) {
-      node.text = newText;
-      const fileStore = useFileStore();
-      fileStore.markAsUnsaved();
+      // Only push state if text actually changed
+      if (node.text !== newText) {
+        pushState();
+        node.text = newText;
+        const fileStore = useFileStore();
+        fileStore.markAsUnsaved();
+      }
     }
   };
 
-  // Action: 删除节点
-  const deleteNode = (nodeId: string) => {
+  // Action: 删除节点 (支持批量删除)
+  const deleteNode = (nodeId?: string) => {
     if (!rootNode.value) return;
-    if (nodeId === rootNode.value.id) {
-      console.warn("Cannot delete the root node.");
+
+    // If a specific node is requested (e.g. from context menu), delete only that one
+    // Otherwise, delete all selected nodes
+    const nodesToDeleteIds = nodeId ? [nodeId] : [...selectedNodeIds.value];
+
+    if (nodesToDeleteIds.length === 0) return;
+
+    // Filter out root node if attempted to delete
+    const validIdsToDelete = nodesToDeleteIds.filter(id => id !== rootNode.value?.id);
+
+    if (validIdsToDelete.length === 0) {
+      console.warn("Cannot delete the root node or no valid nodes to delete.");
       return;
     }
 
-    const fileStore = useFileStore();
-    const nodesToDelete: MindmapNode[] = [];
-    const currentRoot = rootNode.value; // Work directly on the reactive root
+    pushState(); // Save state before modification
 
-    // 1. 递归查找函数：找到要删除的节点及其所有子孙节点
-    const findAndCollect = (
-      node: MindmapNode,
-      targetId: string,
-      parent: MindmapNode | null,
-    ): boolean => {
-      if (node.id === targetId) {
-        // 找到节点，收集它和它的所有子孙
-        collectAllChildren(node, nodesToDelete);
-        // 从父节点的 children 数组中移除
-        if (parent) {
-          parent.children = parent.children.filter(
-            (child) => child.id !== targetId,
-          );
-        }
-        return true;
-      }
-      for (const child of node.children) {
-        if (findAndCollect(child, targetId, node)) {
+    const fileStore = useFileStore();
+    const currentRoot = rootNode.value;
+    let parentOfLastDeleted: MindmapNode | null = null;
+
+    // Helper to delete a single node
+    const deleteSingleNode = (targetId: string) => {
+      const nodesToDelete: MindmapNode[] = [];
+
+      // 1. 递归查找函数：找到要删除的节点及其所有子孙节点
+      const findAndCollect = (
+        node: MindmapNode,
+        targetId: string,
+        parent: MindmapNode | null,
+      ): boolean => {
+        if (node.id === targetId) {
+          // 找到节点，收集它和它的所有子孙
+          collectAllChildren(node, nodesToDelete);
+          // 从父节点的 children 数组中移除
+          if (parent) {
+            parent.children = parent.children.filter(
+              (child) => child.id !== targetId,
+            );
+            parentOfLastDeleted = parent;
+          }
           return true;
         }
-      }
-      return false;
-    };
-
-    const collectAllChildren = (
-      node: MindmapNode,
-      collection: MindmapNode[],
-    ) => {
-      collection.push(node);
-      for (const child of node.children) {
-        collectAllChildren(child, collection);
-      }
-    };
-
-    // 2. 执行查找、收集和状态更新
-    const parentOfDeleted = findNodeAndParent(nodeId, currentRoot).parent;
-    if (findAndCollect(currentRoot, nodeId, null)) {
-      // No need to call _updateRootNode, changes are made directly
-      debouncedApplyLayout(); // Apply layout after deleting
-
-      // 3. 遍历所有被删除的节点，清理它们的资源
-      for (const node of nodesToDelete) {
-        // a. 清理 Markdown 内容
-        if (node.markdown) {
-          fileStore.deleteMarkdownContent(node.markdown);
+        for (const child of node.children) {
+          if (findAndCollect(child, targetId, node)) {
+            return true;
+          }
         }
-        // b. 清理图片文件
-        if (node.images && node.images.length > 0) {
-          for (const imageName of node.images) {
-            fileStore.deleteTempFile(`images/${imageName}`);
+        return false;
+      };
+
+      const collectAllChildren = (
+        node: MindmapNode,
+        collection: MindmapNode[],
+      ) => {
+        collection.push(node);
+        for (const child of node.children) {
+          collectAllChildren(child, collection);
+        }
+      };
+
+      if (findAndCollect(currentRoot, targetId, null)) {
+        // 3. 遍历所有被删除的节点，清理它们的资源
+        for (const node of nodesToDelete) {
+          // a. 清理 Markdown 内容
+          if (node.markdown) {
+            fileStore.deleteMarkdownContent(node.markdown);
+          }
+          // b. 清理图片文件
+          if (node.images && node.images.length > 0) {
+            for (const imageName of node.images) {
+              fileStore.deleteTempFile(`images/${imageName}`);
+            }
           }
         }
       }
+    };
 
-      // 4. 标记为未保存
-      fileStore.markAsUnsaved();
-
-      // 5. 如果删除的节点是当前选中的，则将选中移到其父节点
-      if (selectedNodeId.value === nodeId && parentOfDeleted) {
-        selectNode(parentOfDeleted.id);
+    // Execute deletion for all targets
+    // Sort by depth or process carefully to avoid issues if deleting parent and child together
+    // Actually, if we delete a parent, the child is gone too. 
+    // So we should check if a node still exists before trying to delete it.
+    for (const id of validIdsToDelete) {
+      console.log(`Attempting to delete node: ${id}`);
+      // Check if node still exists (it might have been deleted as a child of a previous node)
+      const { node } = findNodeAndParent(id, currentRoot);
+      if (node) {
+        console.log(`Node ${id} found, deleting...`);
+        deleteSingleNode(id);
+      } else {
+        console.log(`Node ${id} not found (already deleted?)`);
       }
+    }
 
-      // If the deleted node was the temporary view root, reset to the actual root
-      if (viewRootNodeId.value === nodeId) {
-        if (rootNode.value) {
-          setViewRoot(rootNode.value.id);
-        }
+    debouncedApplyLayout(); // Apply layout after deleting
+    fileStore.markAsUnsaved();
+
+    // Update selection
+    // If we deleted the selected nodes, try to select the parent of the last deleted node
+    // or clear selection if nothing makes sense
+    const remainingSelected = selectedNodeIds.value.filter(id => {
+      const { node } = findNodeAndParent(id, currentRoot);
+      return !!node;
+    });
+
+    if (remainingSelected.length > 0) {
+      selectedNodeIds.value = remainingSelected;
+    } else if (parentOfLastDeleted) {
+      selectNode(parentOfLastDeleted.id);
+    } else {
+      selectedNodeIds.value = [];
+    }
+
+    // If the deleted node was the temporary view root, reset to the actual root
+    // Check if viewRoot still exists
+    if (viewRootNodeId.value) {
+      const { node } = findNodeAndParent(viewRootNodeId.value, currentRoot);
+      if (!node && rootNode.value) {
+        setViewRoot(rootNode.value.id);
       }
     }
   };
@@ -488,6 +830,8 @@ export const useMindmapStore = defineStore("mindmap", () => {
       console.warn("Cannot reparent node to its own descendant.");
       return;
     }
+
+    pushState(); // Save state before modification
 
     const currentRoot = rootNode.value; // Work directly on the reactive root
     const { node: movedNode, parent: oldParentNode } = findNodeAndParent(
@@ -554,6 +898,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
     if (!rootNode.value) return;
     const { node } = findNodeAndParent(nodeId, rootNode.value);
     if (node) {
+      pushState(); // Save state before modification
       if (!node.images) {
         node.images = [];
       }
@@ -569,6 +914,9 @@ export const useMindmapStore = defineStore("mindmap", () => {
     if (!rootNode.value) return;
     const { node } = findNodeAndParent(nodeId, rootNode.value);
     if (node) {
+      // Only push state if position actually changed significantly (optional optimization, but good for now)
+      // For drag-end, we assume it's a valid move worth saving
+      pushState();
       node.position = newPosition;
       const fileStore = useFileStore();
       fileStore.markAsUnsaved();
@@ -618,6 +966,8 @@ export const useMindmapStore = defineStore("mindmap", () => {
       rootNode.value,
     );
 
+    pushState(); // Save state before modification
+
     // Ensure both nodes are siblings
     if (draggedParent && targetParent && draggedParent.id === targetParent.id) {
       const siblings = draggedParent.children;
@@ -666,34 +1016,48 @@ export const useMindmapStore = defineStore("mindmap", () => {
   };
 
   return {
+    // State
     rootNode,
-    selectedNodeId,
+    selectedNodeId: primarySelectedNodeId, // Backward compatibility alias if needed, or just use primary
+    selectedNodeIds,
     pinnedNodeIds,
-    viewRootNodeId, // Expose new state
+    viewRootNodeId,
+    collapsedNodeIds,
     panTargetNodeId,
+    nodeDimensions,
+    // Getters
     allNodes,
-    selectedNode,
+    selectedNode, // This now returns the primary selected node
+    selectedNodes,
     currentNodePath,
+    // Actions
     setMindmapData,
     selectNode,
+    toggleNodeSelection,
+    addNodeToSelection,
+    clearSelection,
+    selectRange,
     selectAndPanToNode,
-    setViewRoot, // Expose new action
+    setViewRoot,
+    applyLayout,
+    setNodeDimensions,
     addChildNode,
     addSiblingNode,
+    addChildNodeWithImage,
+    addSiblingNodeWithImage,
     updateNodeText,
-    updateNodePosition, // Expose new action
-    deleteNode, // Expose new action
-    reparentNode, // Expose new action
+    deleteNode,
+    reparentNode,
     togglePin,
-    collapsedNodeIds, // Expose collapsed state
-    toggleNodeCollapse, // Expose collapse action
-    addImageToNode, // Expose add image action
-    findNodeAndParent, // Expose helper function
-    setNodeDraggable, // Expose draggable action
-    setNodeDimensions, // Expose dimensions setter
+    toggleNodeCollapse,
     // For Drag and Drop
     getAllDescendants,
     reorderNode,
     setNodePosition,
+    setNodeDraggable,
+    undo,
+    redo,
+    // Helpers
+    findNodeAndParent,
   };
 });

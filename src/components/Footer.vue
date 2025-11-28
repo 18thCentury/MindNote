@@ -79,7 +79,8 @@ const handlePathClick = (nodeId: string) => {
     padding: 0 2px;
     border-radius: 2px;
     &:hover {
-        background-color: var(--el-color-info-light-8);
+        background-color: var(--el-color-primary-light-9);
+        color: var(--el-color-primary);
     }
 }
 .path-separator {

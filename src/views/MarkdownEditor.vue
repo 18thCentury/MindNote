@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, onBeforeUnmount } from "vue";
+import { ref, onMounted, watch, onBeforeUnmount, computed } from "vue";
 import Editor from "@toast-ui/editor";
 import "@toast-ui/editor/dist/toastui-editor.css";
+import "@toast-ui/editor/dist/theme/toastui-editor-dark.css"; // Import Dark Theme
 import tableExtension from "@toast-ui/editor-plugin-table-merged-cell";
 import "@toast-ui/editor-plugin-table-merged-cell/dist/toastui-editor-plugin-table-merged-cell.css";
 import { useFileStore } from "../stores/fileStore";
 import { useEditorStore } from "../stores/editorStore";
+import { useSettingsStore } from "../stores/settingsStore"; // Import Settings Store
 import { ElMessage } from "element-plus";
 
 interface Props {
@@ -20,9 +22,43 @@ const editorRef = ref<HTMLElement | null>(null);
 let editorInstance: Editor | null = null;
 const fileStore = useFileStore();
 const editorStore = useEditorStore();
+const settingsStore = useSettingsStore();
+
+const systemDarkMode = ref(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+const updateSystemTheme = (e: MediaQueryListEvent) => {
+    systemDarkMode.value = e.matches;
+};
+
+// Computed property to check if dark mode is active
+const isDarkMode = computed(() => {
+    if (settingsStore.settings.theme === 'dark') return true;
+    if (settingsStore.settings.theme === 'light') return false;
+    return systemDarkMode.value;
+});
+
+// Watch for theme changes to update editor options/class
+watch(isDarkMode, (newVal) => {
+    if (editorRef.value) {
+        if (newVal) {
+            editorRef.value.classList.add('toastui-editor-dark');
+        } else {
+            editorRef.value.classList.remove('toastui-editor-dark');
+        }
+    }
+});
 
 onMounted(() => {
+    if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateSystemTheme);
+    }
+
     if (editorRef.value) {
+        // Apply initial theme class
+        if (isDarkMode.value) {
+            editorRef.value.classList.add('toastui-editor-dark');
+        }
+
         editorInstance = new Editor({
             el: editorRef.value,
             height: "100%",
@@ -30,6 +66,7 @@ onMounted(() => {
             previewStyle: "vertical",
             initialValue: props.initialContent,
             plugins: [tableExtension],
+            // theme: isDarkMode.value ? 'dark' : 'light', // Some versions support this, but CSS import + class is safer
             hooks: {
                 addImageBlobHook: async (blob, callback) => {
                     if (!fileStore.tempDir || !props.currentNodeId) {
@@ -84,6 +121,9 @@ watch(
 );
 
 onBeforeUnmount(() => {
+    if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', updateSystemTheme);
+    }
     if (editorInstance) {
         editorInstance.destroy();
         editorInstance = null;
@@ -104,7 +144,7 @@ onBeforeUnmount(() => {
 }
 
 .toast-ui-editor {
-    background-color: #fff;
+    background-color: var(--panel-bg-color);
 }
 
 .markdown-editor-wrapper :deep(.toastui-editor-defaultUI-toolbar) {
