@@ -1,7 +1,7 @@
 {
   "name": "mindnote",
   "version": "1.0.0",
-  "description": "",
+  "description": "wwg works",
   "main": "dist-electron/electron/main.js",
   "scripts": {
     "clear": "rmdir /s /q dist dist-electron",
