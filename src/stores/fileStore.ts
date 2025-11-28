@@ -259,13 +259,7 @@ export const useFileStore = defineStore("file", () => {
 
       // Clear other stores
       const mindmapStore = useMindmapStore();
-      mindmapStore.setMindmapData({
-        id: "root",
-        text: "Root",
-        children: [],
-        markdown: "",
-        images: [],
-      }); // Reset to empty or initial state
+      mindmapStore.setMindmapData(null); // Reset to empty state
 
       const editorStore = useEditorStore();
       editorStore.setMarkdownContent("", "");

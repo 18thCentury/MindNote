@@ -186,18 +186,25 @@ export const useMindmapStore = defineStore("mindmap", () => {
   });
 
   // Action: 设置思维导图数据
-  const setMindmapData = (data: MindmapNode) => {
+  const setMindmapData = (data: MindmapNode | null) => {
     rootNode.value = data; // Direct assignment for initial load
     past.value = []; // Clear history on load
     future.value = [];
-    applyLayout(); // Apply layout immediately on initial data load
-    applyLayout(); // Apply layout immediately on initial data load
-    selectedNodeIds.value = [data.id]; // 默认选中根节点
-    viewRootNodeId.value = data.id; // 默认视图根节点也是实际根节点
 
-    // 如果 pinnedNodeIds 为空，则默认 pin 实际根节点
-    if (pinnedNodeIds.value.length === 0 && data.id) {
-      pinnedNodeIds.value.push(data.id);
+    if (data) {
+      applyLayout(); // Apply layout immediately on initial data load
+      selectedNodeIds.value = [data.id]; // 默认选中根节点
+      viewRootNodeId.value = data.id; // 默认视图根节点也是实际根节点
+
+      // 如果 pinnedNodeIds 为空，则默认 pin 实际根节点
+      if (pinnedNodeIds.value.length === 0 && data.id) {
+        pinnedNodeIds.value.push(data.id);
+      }
+    } else {
+      selectedNodeIds.value = [];
+      viewRootNodeId.value = null;
+      pinnedNodeIds.value = [];
+      nodeDimensions.value.clear();
     }
   };
 
