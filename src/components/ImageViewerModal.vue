@@ -24,7 +24,7 @@ const MIN_ZOOM = 0.1; // Will be dynamically adjusted to fit container
 
 const imageStyle = computed(() => ({
   transform: `translate(${translateX.value}px, ${translateY.value}px) scale(${scale.value})`,
-  cursor: isDragging.value ? "grabbing" : scale.value > 1 ? "grab" : "default",
+  cursor: isDragging.value ? "grab" : scale.value > 1 ? "grab" : "default",
 }));
 
 const zoomPercentage = computed(() => Math.round(scale.value * 100));

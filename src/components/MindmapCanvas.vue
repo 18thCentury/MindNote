@@ -917,6 +917,11 @@ watch(
     height: 100%;
     position: relative;
     background-color: var(--app-bg-color);
+    cursor: grab;
+
+    &:active {
+        cursor: grab;
+    }
 }
 
 .drop-indicator {
