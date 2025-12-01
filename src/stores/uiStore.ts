@@ -9,9 +9,13 @@ export const useUIStore = defineStore('ui', {
       visible: false,
       imageUrl: null,
     },
+    activePanel: 'mindmap', // Default to mindmap
   }),
 
   actions: {
+    setActivePanel(panel: 'mindmap' | 'editor') {
+      this.activePanel = panel;
+    },
     setSelectedNode(nodeId: string | null) {
       this.selectedNodeId = nodeId;
     },

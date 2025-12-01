@@ -8,6 +8,7 @@ import "@toast-ui/editor-plugin-table-merged-cell/dist/toastui-editor-plugin-tab
 import { useFileStore } from "../stores/fileStore";
 import { useEditorStore } from "../stores/editorStore";
 import { useSettingsStore } from "../stores/settingsStore"; // Import Settings Store
+import { useUIStore } from "../stores/uiStore";
 import { ElMessage } from "element-plus";
 
 interface Props {
@@ -23,6 +24,7 @@ let editorInstance: Editor | null = null;
 const fileStore = useFileStore();
 const editorStore = useEditorStore();
 const settingsStore = useSettingsStore();
+const uiStore = useUIStore();
 
 const systemDarkMode = ref(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
@@ -132,7 +134,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div class="markdown-editor-wrapper">
+    <div class="markdown-editor-wrapper" @mousedown.capture="uiStore.setActivePanel('editor')">
         <div ref="editorRef" class="toast-ui-editor"></div>
     </div>
 </template>
@@ -145,6 +147,16 @@ onBeforeUnmount(() => {
 
 .toast-ui-editor {
     background-color: var(--panel-bg-color);
+}
+
+/* 针对 WYSIWYG 模式 (如果有) */
+.markdown-editor-wrapper :deep(.toastui-editor-ww-mode h1),
+.markdown-editor-wrapper :deep(.toastui-editor-ww-mode h2),
+.markdown-editor-wrapper :deep(.toastui-editor-ww-mode h3),
+.markdown-editor-wrapper :deep(.toastui-editor-ww-mode h4),
+.markdown-editor-wrapper :deep(.toastui-editor-ww-mode h5),
+.markdown-editor-wrapper :deep(.toastui-editor-ww-mode h6) {
+  border-bottom: none !important;
 }
 
 .markdown-editor-wrapper :deep(.toastui-editor-defaultUI-toolbar) {

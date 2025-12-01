@@ -697,6 +697,7 @@ const addImageToNode = async (nodeId: string) => {
 };
 
 const handleKeyDown = (event: KeyboardEvent) => {
+    if (uiStore.activePanel !== 'mindmap') return;
     if (editorStore.isTextInputActive) return;
     
     // Delete Node
@@ -823,7 +824,7 @@ watch(
         @click="dropdownRef?.handleClose()"
         @dragover.prevent="onExternalDragOver"
         @drop.prevent="onExternalDrop"
-        @mousedown="onMouseDown"
+        @mousedown.capture="(e) => { onMouseDown(e); uiStore.setActivePanel('mindmap'); }"
         @mousemove="onMouseMove"
         @mouseup="onMouseUp"
         @contextmenu="onContextMenu"

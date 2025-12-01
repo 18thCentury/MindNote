@@ -124,6 +124,7 @@ export interface UIState {
     visible: boolean;
     imageUrl: string | null;
   };
+  activePanel: 'mindmap' | 'editor';
   // Add other UI-related states here
 }
 
