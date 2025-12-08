@@ -83,6 +83,9 @@ const nodeClass = computed(() => {
     if (props.isDropTarget) {
         classes.push("drop-target-node");
     }
+    if (isEditing.value) {
+        classes.push("editing-node");
+    }
     return classes.join(" ");
 });
 
@@ -189,14 +192,16 @@ const customStyle = computed(() => {
             <el-icon v-if="hasMarkdownContent" class="node-icon"><Document /></el-icon>
             <span class="node-text">{{ data.text }}</span>
         </div>
-        <input
-            v-else
-            v-model="editText"
-            @blur="finishEditing"
-            @keydown.enter.stop="finishEditing"
-            v-focus
-            class="node-input"
-        />
+        <div v-else class="input-wrapper">
+            <span class="ghost-text">{{ editText }}</span>
+            <input
+                v-model="editText"
+                @blur="finishEditing"
+                @keydown.enter.stop="finishEditing"
+                v-focus
+                class="node-input"
+            />
+        </div>
         <Handle type="source" :position="Position.Right" class="node-handle" />
 
         <button
@@ -258,6 +263,14 @@ const customStyle = computed(() => {
     border-color: var(--el-color-primary);
     border-width: 2px;
     box-shadow: var(--app-shadow-lg);
+}
+
+.custom-node.editing-node {
+    border-color: var(--el-color-primary);
+    box-shadow: 0 0 0 4px var(--el-color-primary-light-8), var(--app-shadow-md);
+    background-color: var(--panel-bg-color); /* Ensure readability */
+    z-index: 20; /* Ensure it's on top of everything when editing */
+    cursor: text;
 }
 
 .collapse-button {
@@ -342,4 +355,42 @@ const customStyle = computed(() => {
     font-size: 12px;
     color: var(--el-text-color-secondary);
 }
-</style>
+
+.input-wrapper {
+    display: inline-grid;
+    align-items: center;
+    justify-items: center;
+    min-width: 40px; /* Essential to prevent collapsing to zero */
+}
+
+.ghost-text {
+    grid-area: 1 / 1 / 2 / 2;
+    padding: 0;
+    margin: 0;
+    white-space: pre;
+    visibility: hidden;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    /* Ensure ghost text doesn't affect layout height unnecessarily if empty, though input usually dictates that */
+    min-height: 1.2em; 
+}
+
+.node-input {
+    grid-area: 1 / 1 / 2 / 2;
+    width: 100%;
+    /* Existing styles override */
+    border: none;
+    outline: none;
+    background: transparent;
+    text-align: center;
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    color: inherit;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+    line-height: inherit;
+}</style>
