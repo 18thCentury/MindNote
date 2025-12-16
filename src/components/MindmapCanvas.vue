@@ -673,6 +673,9 @@ const handleContextMenuCommand = async (command: string) => {
         case "pin-node":
             mindmapStore.togglePin(contextMenuNodeId.value);
             break;
+        case "export-markdown":
+            await fileStore.exportNodeToMarkdown(contextMenuNodeId.value);
+            break;
     }
     contextMenuNodeId.value = null;
 };
@@ -724,6 +727,11 @@ const handleKeyDown = (event: KeyboardEvent) => {
             editorStore.setEditingNodeId(props.selectedNodeId);
         }
     }
+    if ((event.ctrlKey || event.metaKey) && event.key === "v") {
+        event.preventDefault();
+        mindmapStore.pasteNode();
+    }
+
     // Undo/Redo shortcuts
     if ((event.ctrlKey || event.metaKey) && event.key === "z") {
         event.preventDefault();
@@ -737,6 +745,7 @@ const handleKeyDown = (event: KeyboardEvent) => {
         event.preventDefault();
         mindmapStore.redo();
     }
+
 };
 
 const showContextMenu = async (event: MouseEvent) => {
@@ -902,6 +911,9 @@ watch(
                     >
                     <el-dropdown-item command="delete-node" divided
                         >Delete Node</el-dropdown-item
+                    >
+                    <el-dropdown-item command="export-markdown" divided
+                        >Export MD</el-dropdown-item
                     >
                     <el-dropdown-item command="pin-node" divided
                         >Pin Node</el-dropdown-item

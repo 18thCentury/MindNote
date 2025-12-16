@@ -256,6 +256,28 @@ ipcMain.handle(IPC_EVENTS.FILE_NEW, async () => {
   }
 });
 
+// Corresponds to EXPORT_MARKDOWN
+ipcMain.handle(IPC_EVENTS.EXPORT_MARKDOWN, async (event, content: string, defaultName: string) => {
+  if (!mainWindow) return { success: false };
+  try {
+    const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+      title: "Export Markdown",
+      defaultPath: `${defaultName}.md`,
+      filters: [{ name: "Markdown Files", extensions: ["md"] }],
+    });
+
+    if (canceled || !filePath) {
+      return { success: false };
+    }
+
+    await fs.writeFile(filePath, content, "utf-8");
+    return { success: true, filePath };
+  } catch (error) {
+    console.error("Failed to export markdown:", error);
+    throw error;
+  }
+});
+
 // Placeholder for FILE_CLOSE
 ipcMain.handle(IPC_EVENTS.FILE_CLOSE, async () => {
   // Logic to handle closing a file, e.g., checking for unsaved changes

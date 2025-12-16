@@ -271,6 +271,73 @@ export const useFileStore = defineStore("file", () => {
     }
   };
 
+  // Action: 导出节点为 Markdown
+  const exportNodeToMarkdown = async (nodeId: string) => {
+    const mindmapStore = useMindmapStore();
+    const editorStore = useEditorStore();
+
+    // 1. Sync current editor content if needed
+    if (editorStore.currentMarkdownNodeId === nodeId) {
+      // If editing the root of export, sync it.
+      // Actually we should sync regardless of which node is being edited, 
+      // to ensure global consistency if we are exporting a tree that might verify the edited node.
+    }
+    // Better: just sync whatever is in editor to the store
+    if (editorStore.currentMarkdownNodeId) {
+      const node = mindmapStore.allNodes.find(n => n.id === editorStore.currentMarkdownNodeId);
+      if (node) {
+        allMarkdownContents.value[node.markdown] = editorStore.currentMarkdownContent;
+      }
+    }
+
+    // 2. Find target node
+    const { node: targetNode } = mindmapStore.findNodeAndParent(nodeId, mindmapStore.rootNode);
+    if (!targetNode) {
+      console.error("Node not found for export");
+      return;
+    }
+
+    // 3. Recursive generator
+    let markdownOutput = "";
+
+    const generate = (node: typeof targetNode, level: number) => {
+      // Heading
+      const headingPrefix = "#".repeat(Math.max(1, level));
+      // Logic: 
+      // Level 0 (Selected): #
+      // Level 1 (Child): #
+      // Level 2 (GrandChild): ##
+
+      let actualPrefix = "";
+      if (level === 0) actualPrefix = "#";
+      else actualPrefix = "#".repeat(level + 1);
+
+      markdownOutput += `${actualPrefix} ${node.text}\n\n`;
+
+      // Blockquote content
+      const content = allMarkdownContents.value[node.markdown];
+      if (content && content.trim()) {
+        // Add > to each line
+        const quoted = content.split('\n').map(line => `> ${line}`).join('\n');
+        markdownOutput += `${quoted}\n\n`;
+      }
+
+      // Children
+      node.children.forEach(child => generate(child, level + 1));
+    };
+
+    generate(targetNode, 0);
+
+    // 4. Send to Main Process
+    try {
+      await ipcRenderer.invoke(IPC_EVENTS.EXPORT_MARKDOWN, markdownOutput, targetNode.text);
+      ElMessage.success("Markdown exported successfully");
+    } catch (error) {
+      console.error("Export failed:", error);
+      ElMessage.error("Failed to export markdown");
+    }
+  };
+
   return {
     currentFilePath,
     saveStatus,
@@ -279,7 +346,7 @@ export const useFileStore = defineStore("file", () => {
     openMnFile,
     saveCurrentFile,
     saveCurrentFileAs,
-    closeCurrentFile, // Expose new action
+    closeCurrentFile,
     markAsUnsaved,
     handleImagePaste,
     createNewFile,
@@ -289,6 +356,7 @@ export const useFileStore = defineStore("file", () => {
     getAllMarkdownContent,
     deleteTempFile,
     saveDroppedImage,
+    exportNodeToMarkdown,
   };
 });
 

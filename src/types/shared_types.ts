@@ -65,6 +65,7 @@ export enum IPC_EVENTS {
   FILE_SAVE_AS = "file:save-as",
   FILE_NEW = "file:new",
   FILE_CLOSE = "file:close",
+  EXPORT_MARKDOWN = "export:markdown",
   // Image handling
   IMAGE_SAVE = "image:save", // For saving pasted images
   // UI/State updates from main to renderer
