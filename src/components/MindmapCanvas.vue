@@ -727,9 +727,17 @@ const handleKeyDown = (event: KeyboardEvent) => {
             editorStore.setEditingNodeId(props.selectedNodeId);
         }
     }
+    if ((event.ctrlKey || event.metaKey) && event.key === "x") {
+        event.preventDefault();
+        mindmapStore.cutNode();
+    }
+    if ((event.ctrlKey || event.metaKey) && event.key === "c") {
+        event.preventDefault();
+        mindmapStore.copyNode();
+    }
     if ((event.ctrlKey || event.metaKey) && event.key === "v") {
         event.preventDefault();
-        mindmapStore.pasteNode();
+        mindmapStore.pasteClipboard();// or copied node
     }
 
     // Undo/Redo shortcuts

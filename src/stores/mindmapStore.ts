@@ -8,7 +8,9 @@ import { useEditorStore } from "./editorStore";
 import { useSettingsStore } from "./settingsStore";
 
 
+
 import { MindmapNode, MindmapEdge } from "../types/shared_types";
+import { ElMessage } from "element-plus";
 
 export const useMindmapStore = defineStore("mindmap", () => {
   const rootNode = ref<MindmapNode | null>(null); // 当前思维导图的实际根节点
@@ -1015,6 +1017,247 @@ export const useMindmapStore = defineStore("mindmap", () => {
     }
   };
 
+  // --- Clipboard Operations ---
+  const clipboard = ref<{
+    nodeId: string;
+    action: "copy" | "cut";
+  } | null>(null);
+
+  const copyNode = async () => {
+    if (!primarySelectedNodeId.value || !rootNode.value) return;
+    const { node } = findNodeAndParent(primarySelectedNodeId.value, rootNode.value);
+    if (node) {
+      clipboard.value = { nodeId: node.id, action: "copy" };
+      try {
+        await navigator.clipboard.writeText(node.text);
+      } catch (err) {
+        console.error("Failed to copy to system clipboard", err);
+      }
+      ElMessage.success("Node copied");
+    }
+  };
+
+  const cutNode = async () => {
+    if (!primarySelectedNodeId.value || !rootNode.value) return;
+    // Don't cut root
+    if (primarySelectedNodeId.value === rootNode.value.id) {
+      ElMessage.warning("Cannot cut root node");
+      return;
+    }
+
+    const { node } = findNodeAndParent(primarySelectedNodeId.value, rootNode.value);
+    if (node) {
+      clipboard.value = { nodeId: node.id, action: "cut" };
+      try {
+        await navigator.clipboard.writeText(node.text);
+      } catch (err) {
+        console.error("Failed to copy to system clipboard", err);
+      }
+      ElMessage.success("Node cut");
+    }
+  };
+
+  const pasteClipboard = async () => {
+    if (!rootNode.value) return;
+    const targetId = primarySelectedNodeId.value || rootNode.value.id;
+    const { node: targetNode } = findNodeAndParent(targetId, rootNode.value);
+    if (!targetNode) return;
+
+    try {
+      const fileStore = useFileStore();
+
+      // 1. Check for Image Items first (System Clipboard)
+      // Accessing clipboard items for images
+      try {
+        const clipboardItems = await navigator.clipboard.read();
+        for (const item of clipboardItems) {
+          if (item.types.some(type => type.startsWith('image/'))) {
+            const blob = await item.getType(item.types.find(t => t.startsWith('image/'))!);
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+              const base64 = e.target?.result as string;
+              if (base64) {
+                const imageName = await fileStore.handleImagePaste(base64, targetId);
+                // Need to add child node with this image OR add to current node?
+                // Requirement: "新建图片子节点" (Create new image child node)
+                addChildNodeWithImage(targetId, imageName, "Pasted Image");
+              }
+            };
+            reader.readAsDataURL(blob);
+            return; // Priority to image
+          }
+        }
+      } catch (e) {
+        // Firefox or some envs might not support read() fully or permission denied
+        // Fallback to text
+      }
+
+      // 2. Check Text (System Clipboard)
+      const text = await navigator.clipboard.readText();
+      if (!text) return;
+
+      // 3. Internal Node Paste Check
+      // If clboard state exists AND its text matches system clipboard, prioritize internal paste
+      let handledInternal = false;
+      if (clipboard.value) {
+        const { node: sourceNode } = findNodeAndParent(clipboard.value.nodeId, rootNode.value);
+        // If source node still exists (might have been deleted)
+        if (sourceNode && sourceNode.text === text) {
+          handledInternal = true;
+          pushState();
+
+          if (clipboard.value.action === 'copy') {
+            // Deep clone
+            const cloneNode = (n: MindmapNode): MindmapNode => {
+              return {
+                ...n,
+                id: generateUuid(),
+                children: n.children.map(cloneNode),
+                // We should probably duplicate markdown content too? 
+                // For now, new UUID means empty markdown unless we copy content.
+                // Let's copy content if we can.
+                markdown: `${generateUuid()}.md`
+                // Images? They are references. Keeping them is fine.
+              };
+            };
+
+            // Helper to copy markdown content for the cloned tree
+            const copyContentRec = (original: MindmapNode, cloned: MindmapNode) => {
+              const content = fileStore.getMarkdownContent(original.markdown);
+              if (content) {
+                fileStore.setMarkdownContent(cloned.markdown, content);
+              }
+              for (let i = 0; i < original.children.length; i++) {
+                copyContentRec(original.children[i], cloned.children[i]);
+              }
+            };
+
+            const newData = cloneNode(sourceNode);
+            copyContentRec(sourceNode, newData);
+
+            // Reset position (will be handled by layout)
+            // Insert as child
+            targetNode.children.push(newData);
+            debouncedApplyLayout();
+            selectAndPanToNode(newData.id);
+            fileStore.markAsUnsaved();
+
+          } else if (clipboard.value.action === 'cut') {
+            // Move
+            // Validate circular
+            if (isAncestor(sourceNode.id, targetNode.id, rootNode.value)) {
+              ElMessage.error("Cannot move node into its own descendant");
+              return;
+            }
+            reparentNode(sourceNode.id, targetNode.id);
+            clipboard.value = null; // Clear after cut-paste
+          }
+        }
+      }
+
+      if (handledInternal) return;
+
+      // 4. Text Paste Parsing
+      pushState();
+
+      const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+
+      // Helper to count indentation level (tabs or 4 spaces?)
+      // Requirement: "if starts with tab, make it child of previous"
+      // Let's assume strict tab or standard indentation logic.
+
+      // Stack to track parents at each level. index 0 = targetNode.
+      const parentStack: { node: MindmapNode, level: number }[] = [{ node: targetNode, level: -1 }];
+
+      lines.forEach((line) => {
+        // Calculate level
+        let level = 0;
+        const match = line.match(/^(\t+)/);
+        if (match) {
+          level = match[1].length;
+        } else {
+          // If spaces? Requirement said "if starts with tab".
+          // But let's check for 4 spaces = 1 tab fallback if desired? 
+          // Strict compliance: check tabs.
+        }
+
+        const trimmedText = line.trim();
+        if (!trimmedText) return;
+
+        // Find valid parent from stack
+        // We want parent with level = currentLevel - 1
+        // If currentLevel > lastLevel + 1, it's just a child of lastLevel anyway (skip levels).
+
+        // Basic logic:
+        // if level > currentStackTop.level: push new item as child of stackTop
+        // if level <= currentStackTop.level: pop stack until finding parent with level < currentLevel
+
+        // Wait, standard indentation logic:
+        // Root (0)
+        //   Child (1)
+
+        // Our starting point is TargetNode (Level -1 effectively, as base)
+        // Input line level 0 (no tabs) -> Child of Target
+        // Input line level 1 (1 tab) -> Child of previous line
+
+        // Adjust stack logic:
+        // We maintain a stack of the *last added node* at each level.
+        // Stack[0] = targetNode (base)
+
+        // Actually simpler:
+        // We keep a `lastNode` reference?
+        // "if starts with tab, make it child of previous" -> only 1 level deeper?
+        // "recurse"?
+        // Let's support multi-level indents.
+
+        // Example:
+        // A
+        // \t B
+        // \t C
+        // \t\t D
+        // E
+
+        // Stack:
+        // -1: Target
+
+        // Line A (0): Parent Stack item where level < 0? No, parent is stack top if stack top level < 0.
+        // Let's strictly enforce: Parent for Level N is the last node at Level N-1.
+
+        // Normalize level: Ensure we have a parent.
+        // If stack top level >= current level, pop.
+        while (parentStack.length > 1 && parentStack[parentStack.length - 1].level >= level) {
+          parentStack.pop();
+        }
+
+        const parent = parentStack[parentStack.length - 1].node;
+
+        const newNode: MindmapNode = {
+          id: generateUuid(),
+          text: trimmedText,
+          children: [],
+          markdown: `${generateUuid()}.md`,
+          images: [],
+          position: { x: 0, y: 0 } // Layout will fix
+        };
+
+        parent.children.push(newNode);
+        fileStore.setMarkdownContent(newNode.markdown, "");
+
+        // Push to stack as potential parent for next level (Level + 1 candidate)
+        // But wait, the level in stack should correspond to the node's level?
+        // Yes.
+        parentStack.push({ node: newNode, level: level });
+      });
+
+      debouncedApplyLayout();
+      fileStore.markAsUnsaved();
+      ElMessage.success("Text pasted");
+
+    } catch (err) {
+      console.error("Paste failed", err);
+    }
+  };
+
   return {
     // State
     rootNode,
@@ -1059,5 +1302,9 @@ export const useMindmapStore = defineStore("mindmap", () => {
     redo,
     // Helpers
     findNodeAndParent,
+    // Clipboard
+    copyNode,
+    cutNode,
+    pasteClipboard,
   };
 });
