@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, nextTick, onMounted, onBeforeUnmount } from "vue";
+import { computed, ref, nextTick, onMounted, onBeforeUnmount, watch } from "vue";
 import { Handle, Position } from "@vue-flow/core";
 import { useMindmapStore } from "../stores/mindmapStore";
 import { useFileStore } from "../stores/fileStore";
@@ -123,9 +123,23 @@ const toggleCollapse = () => {
     mindmapStore.toggleNodeCollapse(props.data.id);
 };
 
+// Watch for external edit triggers (e.g. Spacebar from parent)
+watch(
+    () => editorStore.editingNodeId,
+    (newId) => {
+        if (newId === props.data.id) {
+            startEditing();
+            editorStore.setEditingNodeId(null); // Consume the trigger
+        }
+    }
+);
+
 const vFocus = {
     mounted: (el: HTMLInputElement) => {
-        nextTick(() => el.focus());
+        nextTick(() => {
+            el.focus();
+            el.select();
+        });
     },
 };
 

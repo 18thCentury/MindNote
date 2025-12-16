@@ -717,6 +717,13 @@ const handleKeyDown = (event: KeyboardEvent) => {
         event.preventDefault();
         mindmapStore.addSiblingNode(props.selectedNodeId);
     }
+    if (event.code === "Space") {
+        event.preventDefault();
+        // enter editor mode
+        if (props.selectedNodeId) {
+            editorStore.setEditingNodeId(props.selectedNodeId);
+        }
+    }
     // Undo/Redo shortcuts
     if ((event.ctrlKey || event.metaKey) && event.key === "z") {
         event.preventDefault();

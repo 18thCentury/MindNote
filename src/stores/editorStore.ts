@@ -8,6 +8,7 @@ export const useEditorStore = defineStore("editor", () => {
   const currentMarkdownContent = ref<string>(""); // 当前编辑器的 Markdown 内容
   const currentMarkdownNodeId = ref<string | null>(null); // 当前 Markdown 关联的节点ID
   const isTextInputActive = ref(false); // 是否有任何文本输入区域处于激活状态
+  const editingNodeId = ref<string | null>(null); // State to trigger editing on a specific node
 
   // Getter: 判断编辑器内容是否为空
   const isEmpty = computed(() => currentMarkdownContent.value.trim() === "");
@@ -15,6 +16,10 @@ export const useEditorStore = defineStore("editor", () => {
   // Action: 设置是否有文本输入激活
   const setTextInputActive = (active: boolean) => {
     isTextInputActive.value = active;
+  };
+
+  const setEditingNodeId = (id: string | null) => {
+    editingNodeId.value = id;
   };
 
   // Action: 设置 Markdown 内容
@@ -53,5 +58,7 @@ export const useEditorStore = defineStore("editor", () => {
     setMarkdownContent,
     updateMarkdownContent,
     setTextInputActive,
+    editingNodeId,
+    setEditingNodeId,
   };
 });
