@@ -64,6 +64,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         # If it's a tag, publish. If not, just build to verify.
         run: |
+          npm run build:renderer
           if ("${{ startsWith(github.ref, 'refs/tags/v') }}" -eq "true") {
              npm run build:electron -- --publish always ${{ matrix.args }}
           } else {
