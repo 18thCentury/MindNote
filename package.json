@@ -14,7 +14,7 @@
     "build": "npm run build:renderer && npm run build:electron",
     "start": "electron .",
     "test:watch": "vitest",
-    "type-check": "vue-tsc --noEmit"
+    "type-check": "vue-tsc --noEmit && tsc --project tsconfig.node.json --noEmit"
   },
   "keywords": [],
   "author": "",
