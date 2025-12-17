@@ -1,5 +1,9 @@
 {
   "name": "mindnote",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/18thCentury/MindNote.git"
+  },
   "version": "1.0.0",
   "description": "wwg works",
   "main": "dist-electron/electron/main.js",
@@ -50,7 +54,14 @@
     },
     "directories": {
       "output": "release"
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "18thCentury",
+        "repo": "MindNote"
+      }
+    ]
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
