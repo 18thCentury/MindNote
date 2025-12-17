@@ -8,11 +8,13 @@
     "vue": "npm run build:renderer",
     "dev": "npx tsc --project tsconfig.node.json && electron .",
     "tsc_s": "npx tsc --project tsconfig.node.json",
-    "test": "vite",
+    "test": "vitest run",
     "build:renderer": "vite build",
     "build:electron": "npx tsc --project tsconfig.node.json && electron-builder",
     "build": "npm run build:renderer && npm run build:electron",
-    "start": "electron ."
+    "start": "electron .",
+    "test:watch": "vitest",
+    "type-check": "vue-tsc --noEmit"
   },
   "keywords": [],
   "author": "",
@@ -66,21 +68,26 @@
     "vue": "^3.5.22"
   },
   "devDependencies": {
+    "@pinia/testing": "^1.0.3",
     "@types/adm-zip": "^0.5.7",
     "@types/lodash.debounce": "^4.0.9",
     "@types/node": "^24.9.2",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-vue": "^6.0.1",
+    "@vue/test-utils": "^2.4.6",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "electron": "^39.0.0",
     "electron-builder": "^26.0.12",
+    "jsdom": "^27.3.0",
     "lodash.debounce": "^4.0.8",
     "sass": "^1.93.2",
     "terser": "^5.44.1",
     "tsc-alias": "^1.8.16",
     "typescript": "^5.9.3",
     "vite": "^7.1.12",
+    "vitest": "^4.0.16",
+    "vue-tsc": "^3.1.8",
     "wait-on": "^9.0.1"
   }
 }

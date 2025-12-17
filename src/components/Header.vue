@@ -114,7 +114,7 @@ const handleClose = () => {
             </el-menu>
         </div>
 
-        <SettingsModal v-model="settingsModalVisible" />
+        <SettingsModal v-model="settingsModalVisible" class="settings-modal"/>
 
 
         <div class="drag-spacer"></div>
@@ -183,7 +183,9 @@ const handleClose = () => {
     height: 100%;
     -webkit-app-region: drag;
 }
-
+.settings-modal{
+    z-index: 1002;
+}
 .window-controls {
     display: flex;
     align-items: center;

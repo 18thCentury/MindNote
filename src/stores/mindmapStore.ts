@@ -342,7 +342,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
       const parentSize = parent
         ? nodeDimensions.value.get(parent.id) || { width: 150, height: 40 }
         : { width: 0 };
-      const parentX = parent ? parent.position.x : -HORIZONTAL_GAP;
+      const parentX = parent && parent.position ? parent.position.x : -HORIZONTAL_GAP;
 
       const mySubtreeHeight = getSubtreeHeight(node);
       const myY = startY + mySubtreeHeight / 2 - mySize.height / 2;
@@ -411,10 +411,13 @@ export const useMindmapStore = defineStore("mindmap", () => {
         // Only update if position has actually changed to avoid unnecessary reactivity triggers
         if (
           !originalNode.position ||
+          !calculatedNode.position ||
           originalNode.position.x !== calculatedNode.position.x ||
           originalNode.position.y !== calculatedNode.position.y
         ) {
-          originalNode.position = { ...calculatedNode.position }; // Create new object to ensure reactivity
+          if (calculatedNode.position) {
+            originalNode.position = { ...calculatedNode.position }; // Create new object to ensure reactivity
+          }
         }
         for (let i = 0; i < originalNode.children.length; i++) {
           updatePositionsInPlace(
@@ -801,7 +804,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
     if (remainingSelected.length > 0) {
       selectedNodeIds.value = remainingSelected;
     } else if (parentOfLastDeleted) {
-      selectNode(parentOfLastDeleted.id);
+      selectNode((parentOfLastDeleted as any).id);
     } else {
       selectedNodeIds.value = [];
     }
@@ -1268,12 +1271,15 @@ export const useMindmapStore = defineStore("mindmap", () => {
     collapsedNodeIds,
     panTargetNodeId,
     nodeDimensions,
+
     // Getters
     allNodes,
-    selectedNode, // This now returns the primary selected node
+    selectedNode,
     selectedNodes,
     currentNodePath,
-    // Actions
+
+    past,
+    future,
     setMindmapData,
     selectNode,
     toggleNodeSelection,
@@ -1283,28 +1289,28 @@ export const useMindmapStore = defineStore("mindmap", () => {
     selectAndPanToNode,
     setViewRoot,
     applyLayout,
+    debouncedApplyLayout,
     setNodeDimensions,
     addChildNode,
     addSiblingNode,
     addChildNodeWithImage,
-    addSiblingNodeWithImage,
+    addSiblingNodeWithImage, // Ensure this is exported
+    addImageToNode, // Exported
     updateNodeText,
     deleteNode,
-    reparentNode,
-    togglePin,
-    toggleNodeCollapse,
-    // For Drag and Drop
-    getAllDescendants,
-    reorderNode,
-    setNodePosition,
-    setNodeDraggable,
     undo,
     redo,
-    // Helpers
+    togglePin,
     findNodeAndParent,
-    // Clipboard
-    copyNode,
     cutNode,
+    copyNode, // Added copyNode
     pasteClipboard,
+    toggleNodeCollapse, // Added
+    setNodeDraggable,   // Added
+    // Drag and Drop / Utils
+    getAllDescendants,
+    reparentNode,
+    reorderNode,
+    setNodePosition,
   };
 });

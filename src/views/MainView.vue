@@ -157,12 +157,12 @@ onBeforeUnmount(() => {
 
 .welcome-content {
     text-align: center;
-    
+    z-index: 1001;
     h1 {
         font-size: 2.5em;
         color: var(--el-text-color-primary);
         margin-bottom: 40px;
-        font-weight: 300;
+        font-weight: 600;
         letter-spacing: 2px;
     }
 

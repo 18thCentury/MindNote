@@ -11,6 +11,7 @@ import {
     VueFlow,
     useVueFlow,
     Node,
+    Edge,
     NodeDragEvent,
     XYPosition,
 } from "@vue-flow/core";
@@ -92,7 +93,7 @@ const isInteractive = computed(() => !editorStore.isTextInputActive);
 
 const layoutElements = computed(() => {
     const nodes: Node[] = [];
-    const edges = [];
+    const edges: Edge[] = [];
     const startNode = mindmapStore.viewRootNodeId
         ? mindmapStore.findNodeAndParent(
               mindmapStore.viewRootNodeId,
@@ -111,7 +112,7 @@ const layoutElements = computed(() => {
             data: { ...node },
             selected: node.id === props.selectedNodeId,
             draggable: node.draggable ?? true,
-        });
+        } as Node);
         if (parentId) {
             edges.push({
                 id: `e-${parentId}-${node.id}`,
@@ -458,7 +459,7 @@ const calculateDropTarget = (
         }
     }
 
-    return bestTarget?.action ?? null;
+    return (bestTarget?.action as DropAction) ?? null;
 };
 
 const canvasWrapperRef = ref<HTMLElement | null>(null);
@@ -467,8 +468,17 @@ const onNodeDrag = ({ node: draggedNode, event }: NodeDragEvent) => {
     if (!draggedNode) return;
     dropAction.value = null; // Reset on each drag event
 
-    let clientX = event.clientX;
-    let clientY = event.clientY;
+    // Handle both MouseEvent and TouchEvent for clientX/Y
+    let clientX = 0;
+    let clientY = 0;
+    
+    if ('clientX' in event) {
+        clientX = (event as MouseEvent).clientX;
+        clientY = (event as MouseEvent).clientY;
+    } else if ('touches' in event && (event as TouchEvent).touches.length > 0) {
+        clientX = (event as TouchEvent).touches[0].clientX;
+        clientY = (event as TouchEvent).touches[0].clientY;
+    }
 
     if (canvasWrapperRef.value) {
         const rect = canvasWrapperRef.value.getBoundingClientRect();
@@ -648,10 +658,11 @@ onNodeContextMenu((event) => {
         return;
     }
 
-    // The `onNodeContextMenu` is only for nodes.
-    event.event.preventDefault();
+            // The `onNodeContextMenu` is only for nodes.
+    const mouseEvent = event.event as unknown as MouseEvent; // Force cast if needed or just use event.event
+    mouseEvent.preventDefault();
     contextMenuNodeId.value = event.node.id;
-    showContextMenu(event.event);
+    showContextMenu(mouseEvent);
 });
 
 const handleContextMenuCommand = async (command: string) => {

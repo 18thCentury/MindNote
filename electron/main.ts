@@ -36,8 +36,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    //frame: false, // Set to false to remove the default window frame
-    //titleBarStyle: "hidden", // Hide the title bar but keep traffic light controls on macOS
+    frame: false, // Set to false to remove the default window frame
+    titleBarStyle: "hidden", // Hide the title bar but keep traffic light controls on macOS
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
