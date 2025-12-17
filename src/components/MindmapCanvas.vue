@@ -459,7 +459,10 @@ const calculateDropTarget = (
         }
     }
 
-    return (bestTarget?.action as DropAction) ?? null;
+    if (bestTarget) {
+        return (bestTarget as any).action;
+    }
+    return null;
 };
 
 const canvasWrapperRef = ref<HTMLElement | null>(null);
