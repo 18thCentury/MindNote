@@ -44,19 +44,29 @@ export const useFileStore = defineStore("file", () => {
     try {
       const { filePath, tempDirPath, mindmapData, markdownFiles } =
         await ipcRenderer.invoke(IPC_EVENTS.FILE_OPEN);
-      tempDir.value = tempDirPath;
-      currentFilePath.value = filePath;
-      allMarkdownContents.value = markdownFiles; // Store all markdown contents
 
-      // 将 mindmapData 设置到 mindmapStore
-      const mindmapStore = useMindmapStore();
-      mindmapStore.setMindmapData(mindmapData.rootNode);
-      saveStatus.value = "saved";
+      setFileData({ filePath, tempDirPath, mindmapData, markdownFiles });
     } catch (error) {
       console.error("Failed to open .mn file:", error);
       saveStatus.value = "error";
       throw error;
     }
+  };
+
+  // Action: 设置文件数据 (用于被动接收文件打开事件)
+  const setFileData = (data: {
+    filePath: string;
+    tempDirPath: string;
+    mindmapData: any;
+    markdownFiles: Record<string, string>;
+  }) => {
+    tempDir.value = data.tempDirPath;
+    currentFilePath.value = data.filePath;
+    allMarkdownContents.value = data.markdownFiles;
+
+    const mindmapStore = useMindmapStore();
+    mindmapStore.setMindmapData(data.mindmapData.rootNode);
+    saveStatus.value = "saved";
   };
 
   // Action: 保存当前文件
@@ -357,6 +367,7 @@ export const useFileStore = defineStore("file", () => {
     deleteTempFile,
     saveDroppedImage,
     exportNodeToMarkdown,
+    setFileData,
   };
 });
 

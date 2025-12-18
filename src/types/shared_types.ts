@@ -61,6 +61,7 @@ export interface MapJsonSchema {
 export enum IPC_EVENTS {
   // File operations
   FILE_OPEN = "file:open",
+  FILE_OPENED = "file:opened", // Event sent from main to renderer when a file is opened
   FILE_SAVE = "file:save",
   FILE_SAVE_AS = "file:save-as",
   FILE_NEW = "file:new",

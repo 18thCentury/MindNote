@@ -6,6 +6,7 @@ import { useMindmapStore } from "../stores/mindmapStore";
 import { useEditorStore } from "../stores/editorStore";
 import { useFileStore } from "../stores/fileStore";
 import { ipcRenderer } from "../utils/ipcRenderer";
+import { IPC_EVENTS } from "../types/shared_types";
 import { Document, FolderOpened } from "@element-plus/icons-vue";
 
 const mindmapStore = useMindmapStore();
@@ -86,10 +87,19 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
 
 onMounted(() => {
     window.addEventListener('keydown', handleGlobalKeydown);
+
+    // Listen for file opened from main process (e.g. double click .mn file)
+    ipcRenderer.on(IPC_EVENTS.FILE_OPENED, (event: any, data: any) => {
+        //console.log("Received FILE_OPENED event", data);
+        if (data && data.filePath) {
+            fileStore.setFileData(data);
+        }
+    });
 });
 
 onBeforeUnmount(() => {
     window.removeEventListener('keydown', handleGlobalKeydown);
+    // ipcRenderer.off(IPC_EVENTS.FILE_OPENED, ...); // Clean up if listener was named
     document.removeEventListener("mousemove", handleMouseMove);
     document.removeEventListener("mouseup", handleMouseUp);
 });
