@@ -244,8 +244,7 @@ const customStyle = computed(() => {
     cursor: pointer;
     transition:
         box-shadow 0.2s ease-in-out,
-        border-color 0.2s ease-in-out,
-        transform 0.1s ease;
+        border-color 0.2s ease-in-out;
     color: var(--el-text-color-primary);
 }
 
