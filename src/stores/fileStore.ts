@@ -66,6 +66,16 @@ export const useFileStore = defineStore("file", () => {
 
     const mindmapStore = useMindmapStore();
     mindmapStore.setMindmapData(data.mindmapData.rootNode);
+
+    // Restore collapsed state if present (backward compatible with old files)
+    if (data.mindmapData.collapsedNodeIds && Array.isArray(data.mindmapData.collapsedNodeIds)) {
+      mindmapStore.collapsedNodeIds.splice(
+        0,
+        mindmapStore.collapsedNodeIds.length,
+        ...data.mindmapData.collapsedNodeIds
+      );
+    }
+
     saveStatus.value = "saved";
   };
 
@@ -96,6 +106,7 @@ export const useFileStore = defineStore("file", () => {
         mindmapData: {
           // 关键修复点：符合 MindmapData 接口
           rootNode: JSON.parse(JSON.stringify(mindmapStore.rootNode!)),
+          collapsedNodeIds: [...mindmapStore.collapsedNodeIds], // Save collapse state
         },
         markdownContents: JSON.parse(JSON.stringify(allMarkdownContents.value)),
       };
@@ -222,7 +233,10 @@ export const useFileStore = defineStore("file", () => {
       const result = await ipcRenderer.invoke(
         IPC_EVENTS.FILE_SAVE_AS,
         tempDir.value,
-        JSON.parse(JSON.stringify(mindmapStore.rootNode)),
+        {
+          rootNode: JSON.parse(JSON.stringify(mindmapStore.rootNode)),
+          collapsedNodeIds: [...mindmapStore.collapsedNodeIds],
+        },
         JSON.parse(JSON.stringify(allMarkdownContents.value)),
       );
 

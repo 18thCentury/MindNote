@@ -5,6 +5,7 @@
  */
 export interface MindmapNode {
   id: string; // Unique identifier for the node (UUID)
+  parentNodeId: string | null; // Parent node ID for O(1) lookup, null for root node
   text: string; // Display text of the node
   children: MindmapNode[]; // Array of child nodes
   markdown: string; // File name of the associated Markdown content (e.g., "uuid.md")
@@ -40,6 +41,7 @@ export interface MindmapEdge {
  */
 export interface MindmapData {
   rootNode: MindmapNode;
+  collapsedNodeIds?: string[]; // Optional for backward compatibility with old files
   // Potentially add other mindmap-level metadata here, e.g.,
   // lastModified: string;
   // version: number;

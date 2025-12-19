@@ -23,6 +23,7 @@ export async function createDefaultMindmapData(): Promise<{
   const mindmapData = {
     rootNode: {
       id: rootNodeId,
+      parentNodeId: null, // Root node has no parent
       text: "New Mindmap",
       children: [],
       markdown: rootMarkdownFile,
@@ -41,7 +42,7 @@ export async function createDefaultMindmapData(): Promise<{
 
 export async function unpackMnFile(mnFilePath: string): Promise<{
   tempDirPath: string;
-  mindmapData: MindmapNode;
+  mindmapData: MindmapData; // Changed from MindmapNode to MindmapData
   markdownFiles: Record<string, string>;
 }> {
   const tempDirPath = await fs.mkdtemp(path.join(app.getPath("temp"), "mindnote-"));
@@ -53,7 +54,20 @@ export async function unpackMnFile(mnFilePath: string): Promise<{
   //console.log(`Unpacked ${mnFilePath} to ${tempDirPath}`);
 
   const mapJsonContent = await readMarkdown(tempDirPath, "map.json");
-  const mindmapData: MindmapNode = JSON.parse(mapJsonContent);
+  const parsedData = JSON.parse(mapJsonContent);
+
+  // Handle both old format (rootNode directly) and new format (MindmapData with rootNode and collapsedNodeIds)
+  let mindmapData: MindmapData;
+  if (parsedData.rootNode) {
+    // New format: already has rootNode property
+    mindmapData = parsedData as MindmapData;
+  } else {
+    // Old format: the parsed data IS the rootNode
+    mindmapData = {
+      rootNode: parsedData as MindmapNode,
+      collapsedNodeIds: []
+    };
+  }
 
   const markdownFiles: Record<string, string> = {};
   const textDir = path.join(tempDirPath, "text");
@@ -233,6 +247,7 @@ function parseFreemindNode(fmNode: FreemindNode, tempDirPath: string, markdownFi
 
   return {
     id,
+    parentNodeId: null, // Will be set by setMindmapData
     text,
     children,
     markdown: markdownFileName,

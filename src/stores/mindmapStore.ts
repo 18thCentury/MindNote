@@ -24,6 +24,33 @@ export const useMindmapStore = defineStore("mindmap", () => {
   );
   const isDragging = ref(false); // Flag to skip layout during drag operations
 
+  // --- O(1) Node Lookup ---
+  // Map for instant node lookup by ID
+  const nodeMap = ref<Map<string, MindmapNode>>(new Map());
+
+  // Rebuild the nodeMap from the tree structure
+  const buildNodeMap = () => {
+    nodeMap.value.clear();
+    if (!rootNode.value) return;
+    const traverse = (node: MindmapNode) => {
+      nodeMap.value.set(node.id, node);
+      node.children.forEach(traverse);
+    };
+    traverse(rootNode.value);
+  };
+
+  // O(1) node lookup by ID
+  const getNodeById = (id: string): MindmapNode | null => {
+    return nodeMap.value.get(id) || null;
+  };
+
+  // O(1) parent lookup using parentNodeId
+  const getParentNode = (nodeId: string): MindmapNode | null => {
+    const node = getNodeById(nodeId);
+    if (!node || !node.parentNodeId) return null;
+    return getNodeById(node.parentNodeId);
+  };
+
   // --- Undo/Redo State ---
   const past = ref<string[]>([]); // Stack of past states (serialized rootNode)
   const future = ref<string[]>([]); // Stack of future states (serialized rootNode)
@@ -44,7 +71,15 @@ export const useMindmapStore = defineStore("mindmap", () => {
     // Pop from past and restore
     const previousState = past.value.pop();
     if (previousState) {
-      rootNode.value = JSON.parse(previousState);
+      const restoredNode = JSON.parse(previousState) as MindmapNode;
+      // Rebuild parentNodeIds after JSON restore (JSON doesn't preserve them properly)
+      const rebuildParentIds = (node: MindmapNode, parentId: string | null) => {
+        node.parentNodeId = parentId;
+        node.children.forEach(child => rebuildParentIds(child, node.id));
+      };
+      rebuildParentIds(restoredNode, null);
+      rootNode.value = restoredNode;
+      buildNodeMap();
       debouncedApplyLayout(); // Re-apply layout
       const fileStore = useFileStore();
       fileStore.markAsUnsaved();
@@ -60,7 +95,15 @@ export const useMindmapStore = defineStore("mindmap", () => {
     // Pop from future and restore
     const nextState = future.value.pop();
     if (nextState) {
-      rootNode.value = JSON.parse(nextState);
+      const restoredNode = JSON.parse(nextState) as MindmapNode;
+      // Rebuild parentNodeIds after JSON restore
+      const rebuildParentIds = (node: MindmapNode, parentId: string | null) => {
+        node.parentNodeId = parentId;
+        node.children.forEach(child => rebuildParentIds(child, node.id));
+      };
+      rebuildParentIds(restoredNode, null);
+      rootNode.value = restoredNode;
+      buildNodeMap();
       debouncedApplyLayout(); // Re-apply layout
       const fileStore = useFileStore();
       fileStore.markAsUnsaved();
@@ -195,6 +238,16 @@ export const useMindmapStore = defineStore("mindmap", () => {
     future.value = [];
 
     if (data) {
+      // Rebuild parentNodeId for each node (handles legacy files without parentNodeId)
+      const rebuildParentIds = (node: MindmapNode, parentId: string | null) => {
+        node.parentNodeId = parentId;
+        node.children.forEach(child => rebuildParentIds(child, node.id));
+      };
+      rebuildParentIds(data, null);
+
+      // Build the nodeMap for O(1) lookups
+      buildNodeMap();
+
       applyLayout(); // Apply layout immediately on initial data load
       selectedNodeIds.value = [data.id]; // 默认选中根节点
       viewRootNodeId.value = data.id; // 默认视图根节点也是实际根节点
@@ -208,6 +261,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
       viewRootNodeId.value = null;
       pinnedNodeIds.value = [];
       nodeDimensions.value.clear();
+      nodeMap.value.clear();
     }
   };
 
@@ -483,6 +537,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
 
       const newNode: MindmapNode = {
         id: generateUuid(),
+        parentNodeId: parentNodeId, // O(1) parent lookup
         text: text,
         children: [],
         markdown: `${generateUuid()}.md`, // Assign a new markdown file
@@ -490,6 +545,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
         position: { x: initialX, y: initialY }, // Rough initial position
       };
       parentNode.children.push(newNode); // Direct modification
+      nodeMap.value.set(newNode.id, newNode); // Add to nodeMap
       debouncedApplyLayout(); // Apply layout after adding
       selectAndPanToNode(newNode.id); // Select and pan to the new node
 
@@ -529,6 +585,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
 
       const newNode: MindmapNode = {
         id: generateUuid(),
+        parentNodeId: parentNode.id, // O(1) parent lookup
         text: text,
         children: [],
         markdown: `${generateUuid()}.md`,
@@ -539,6 +596,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
       const index = parentNode.children.findIndex((n) => n.id === node.id);
       if (index !== -1) {
         parentNode.children.splice(index + 1, 0, newNode); // Direct modification
+        nodeMap.value.set(newNode.id, newNode); // Add to nodeMap
         debouncedApplyLayout(); // Apply layout after adding
         selectAndPanToNode(newNode.id); // Select and pan to the new node
 
@@ -592,6 +650,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
 
       const newNode: MindmapNode = {
         id: generateUuid(),
+        parentNodeId: parentNodeId, // O(1) parent lookup
         text: text,
         children: [],
         markdown: `${generateUuid()}.md`,
@@ -599,6 +658,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
         position: { x: initialX, y: initialY },
       };
       parentNode.children.push(newNode);
+      nodeMap.value.set(newNode.id, newNode); // Add to nodeMap
       debouncedApplyLayout();
       selectAndPanToNode(newNode.id);
       const fileStore = useFileStore();
@@ -642,6 +702,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
 
       const newNode: MindmapNode = {
         id: generateUuid(),
+        parentNodeId: parentNode.id, // O(1) parent lookup
         text: text,
         children: [],
         markdown: `${generateUuid()}.md`,
@@ -653,6 +714,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
       if (index !== -1) {
         const insertIndex = position === "before" ? index : index + 1;
         parentNode.children.splice(insertIndex, 0, newNode);
+        nodeMap.value.set(newNode.id, newNode); // Add to nodeMap
         debouncedApplyLayout();
         selectAndPanToNode(newNode.id);
         const fileStore = useFileStore();
@@ -744,11 +806,13 @@ export const useMindmapStore = defineStore("mindmap", () => {
       if (findAndCollect(currentRoot, targetId, null)) {
         // 3. 遍历所有被删除的节点，清理它们的资源
         for (const node of nodesToDelete) {
-          // a. 清理 Markdown 内容
+          // a. Remove from nodeMap
+          nodeMap.value.delete(node.id);
+          // b. 清理 Markdown 内容
           if (node.markdown) {
             fileStore.deleteMarkdownContent(node.markdown);
           }
-          // b. 清理图片文件
+          // c. 清理图片文件
           if (node.images && node.images.length > 0) {
             for (const imageName of node.images) {
               fileStore.deleteTempFile(`images/${imageName}`);
@@ -837,6 +901,9 @@ export const useMindmapStore = defineStore("mindmap", () => {
       if (index !== -1) {
         oldParentNode.children.splice(index, 1);
       }
+
+      // Update parentNodeId for O(1) lookup
+      movedNode.parentNodeId = newParentId;
 
       // Add to new parent
       newParentNode.children.push(movedNode); // Direct modification
@@ -1220,6 +1287,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
 
         const newNode: MindmapNode = {
           id: generateUuid(),
+          parentNodeId: parent.id, // O(1) parent lookup
           text: trimmedText,
           children: [],
           markdown: `${generateUuid()}.md`,
@@ -1228,6 +1296,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
         };
 
         parent.children.push(newNode);
+        nodeMap.value.set(newNode.id, newNode); // Add to nodeMap
         fileStore.setMarkdownContent(newNode.markdown, "");
 
         // Push to stack as potential parent for next level (Level + 1 candidate)
@@ -1297,5 +1366,9 @@ export const useMindmapStore = defineStore("mindmap", () => {
     reorderNode,
     setNodePosition,
     setDragging, // Optimization: skip layout during drag
+    // O(1) lookup helpers
+    getNodeById,
+    getParentNode,
+    nodeMap, // Expose for debugging/external use if needed
   };
 });
