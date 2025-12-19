@@ -113,7 +113,7 @@ onBeforeUnmount(() => {
                 @node-selected="handleNodeSelected"
                 :selectedNodeId="mindmapStore.selectedNodeId"
             />
-            <div v-if="!fileStore.currentFilePath" class="welcome-overlay">
+            <div v-if="!fileStore.isFileOpen" class="welcome-overlay">
                 <div class="welcome-content">
                     <h1>MindNote</h1>
                     <div class="actions">

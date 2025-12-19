@@ -52,8 +52,18 @@ const handleSaveFileAs = async () => {
     }
 };
 
+
 const handleCloseFile = async () => {
     await fileStore.closeCurrentFile();
+};
+
+const handleImportFreemind = async () => {
+    try {
+        await fileStore.importFreemind();
+    } catch (error) {
+        ElMessage.error("Failed to import FreeMind file.");
+        console.error("Import FreeMind error:", error);
+    }
 };
 
 const handleOpenSettings = () => {
@@ -96,17 +106,24 @@ const handleClose = () => {
                     <el-menu-item
                         index="1-4"
                         @click="handleSaveFileAs"
-                        :disabled="!fileStore.currentFilePath"
+                        :disabled="!fileStore.isFileOpen"
                     >
                         <el-icon><Box /></el-icon>Save As
                     </el-menu-item>
                     <el-menu-item
                         index="1-5"
                         @click="handleCloseFile"
-                        :disabled="!fileStore.currentFilePath"
+                        :disabled="!fileStore.isFileOpen"
                     >
                         <el-icon><Close /></el-icon>Close
                     </el-menu-item>
+                    <el-divider style="margin: 5px 0;" />
+                    <el-sub-menu index="1-6">
+                        <template #title>Import</template>
+                        <el-menu-item index="1-6-1" @click="handleImportFreemind">
+                            <el-icon><Document /></el-icon>FreeMind (.mm)
+                        </el-menu-item>
+                    </el-sub-menu>
                 </el-sub-menu>
                 <el-menu-item index="2" @click="handleOpenSettings">
                     <el-icon><Setting /></el-icon>Settings

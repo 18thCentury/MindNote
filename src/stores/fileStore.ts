@@ -16,8 +16,8 @@ export const useFileStore = defineStore("file", () => {
   const tempDir = ref<string | null>(null); // 解压后的临时目录路径
   const allMarkdownContents = ref<Record<string, string>>({}); // 所有加载的 Markdown 内容
 
-  // Getter: 判断文件是否已打开
-  const isFileOpen = computed(() => currentFilePath.value !== null);
+  // Getter: 判断文件是否已打开 (只要有临时目录，就说明有文件加载)
+  const isFileOpen = computed(() => tempDir.value !== null);
 
   // Getter: 根据文件名获取 Markdown 内容
   const getAllMarkdownContent = () => {
@@ -348,6 +348,39 @@ export const useFileStore = defineStore("file", () => {
     }
   };
 
+  // Action: 导入 FreeMind 文件
+  const importFreemind = async () => {
+    saveStatus.value = "saving";
+    try {
+      const result = await ipcRenderer.invoke(IPC_EVENTS.IMPORT_FREEMIND);
+      if (!result) return; // User cancelled
+
+      // Similar to opening a new file, but without a saved path initially?
+      // Or we can treat it as a new unsaved file populated with data.
+      // Let's assume the backend saves it to a temp dir and returns the structure.
+
+      const { tempDirPath, mindmapData, markdownFiles } = result;
+
+      // Clear current file path to treat as "Untitled" (or new file)
+      // OR: If we want to treat it as a new confirmed file, we might save it first.
+      // Let's treat it as a new unsaved file for now, so user has to "Save As".
+      currentFilePath.value = null;
+      tempDir.value = tempDirPath;
+      allMarkdownContents.value = markdownFiles;
+
+      const mindmapStore = useMindmapStore();
+      mindmapStore.setMindmapData(mindmapData.rootNode);
+
+      saveStatus.value = "unsaved";
+      ElMessage.success("FreeMind file imported successfully.");
+
+    } catch (error) {
+      console.error("Failed to import FreeMind file:", error);
+      saveStatus.value = "error";
+      throw error;
+    }
+  };
+
   return {
     currentFilePath,
     saveStatus,
@@ -368,6 +401,7 @@ export const useFileStore = defineStore("file", () => {
     saveDroppedImage,
     exportNodeToMarkdown,
     setFileData,
+    importFreemind,
   };
 });
 

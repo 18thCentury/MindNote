@@ -212,6 +212,35 @@ if (!gotTheLock) {
     },
   );
 
+  // Corresponds to IMPORT_FREEMIND
+  ipcMain.handle(IPC_EVENTS.IMPORT_FREEMIND, async (event) => {
+    try {
+      const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow!, {
+        properties: ["openFile"],
+        filters: [{ name: "FreeMind Files", extensions: ["mm"] }],
+      });
+
+      if (canceled || filePaths.length === 0) {
+        return null;
+      }
+
+      const filePath = filePaths[0];
+
+      // Clean up previous session's temp dir
+      await cleanupActiveTempDir();
+
+      const { tempDirPath, mindmapData, markdownFiles } = await fileOperations.importFreemind(filePath);
+
+      activeTempDir = tempDirPath; // Track new temp dir
+
+      return { tempDirPath, mindmapData, markdownFiles };
+
+    } catch (error) {
+      console.error("Failed to import FreeMind file:", error);
+      throw error;
+    }
+  });
+
   // Corresponds to IMAGE_SAVE
   ipcMain.handle(
     IPC_EVENTS.IMAGE_SAVE,

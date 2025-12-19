@@ -172,3 +172,107 @@ export async function saveImage(
   await fs.writeFile(imagePath, buffer);
   return imageName;
 }
+
+// ----------------------------------------------------------------------
+// FreeMind Import Logic
+// ----------------------------------------------------------------------
+import { XMLParser } from "fast-xml-parser";
+
+interface FreemindNode {
+  "@_TEXT": string;
+  "@_ID"?: string;
+  node?: FreemindNode | FreemindNode[];
+  richcontent?: any;
+  // other attributes...
+}
+
+function parseFreemindNode(fmNode: FreemindNode, tempDirPath: string, markdownFiles: Record<string, string>): MindmapNode {
+  const id = uuidv4(); // Generate new UUID for MindNote
+  const text = fmNode["@_TEXT"] || "";
+
+  // Create a markdown file for this node
+  const markdownFileName = `${id}.md`;
+  let markdownContent = "";
+
+  // Check for richcontent (notes)
+  // FreeMind often stores notes in 'richcontent' with type="NOTE"
+  if (fmNode.richcontent) {
+    const richContents = Array.isArray(fmNode.richcontent) ? fmNode.richcontent : [fmNode.richcontent];
+    for (const rc of richContents) {
+      if (rc["@_TYPE"] === "NOTE") {
+        // Determine structure of NOTE content
+        // Usually it's html body. We might need to basic strip tags or keep as html if supported?
+        // For now, let's just JSON stringify or try to extract text.
+        // fast-xml-parser behavior depends on config.
+        // Let's assume basic text extraction or raw html.
+        // For simplicity, let's just put the raw object structure or try to find text.
+        try {
+          if (rc.html && rc.html.body) {
+            // Very rough conversion
+            markdownContent = JSON.stringify(rc.html.body);
+          } else {
+            markdownContent = "";
+          }
+        } catch (e) {
+          console.warn("Failed to parse note", e);
+        }
+      }
+    }
+  }
+
+  // If we want a header
+  markdownFiles[markdownFileName] = `# ${text}\n\n${markdownContent}`;
+
+  const children: MindmapNode[] = [];
+  if (fmNode.node) {
+    const childNodes = Array.isArray(fmNode.node) ? fmNode.node : [fmNode.node];
+    for (const child of childNodes) {
+      children.push(parseFreemindNode(child, tempDirPath, markdownFiles));
+    }
+  }
+
+  return {
+    id,
+    text,
+    children,
+    markdown: markdownFileName,
+    images: [],
+    type: "default",
+    // position: handled by layout engine later
+  };
+}
+
+export async function importFreemind(filePath: string): Promise<{
+  tempDirPath: string;
+  mindmapData: MindmapData;
+  markdownFiles: Record<string, string>;
+}> {
+  const xmlData = await fs.readFile(filePath, "utf-8");
+  const parser = new XMLParser({
+    ignoreAttributes: false,
+    attributeNamePrefix: "@_"
+  });
+  const jsonObj = parser.parse(xmlData);
+
+  if (!jsonObj.map || !jsonObj.map.node) {
+    throw new Error("Invalid FreeMind file format");
+  }
+
+  // Prepare temp dir
+  const tempDirPath = await fs.mkdtemp(path.join(app.getPath("temp"), "mindnote-import-"));
+  await ensureTempDir(tempDirPath);
+
+  const markdownFiles: Record<string, string> = {};
+  const rootFmNode = jsonObj.map.node;
+
+  // Parse recursively
+  const rootNode = parseFreemindNode(rootFmNode, tempDirPath, markdownFiles);
+  rootNode.type = "root"; // Ensure root type
+  rootNode.position = { x: 0, y: 0 };
+
+  return {
+    tempDirPath,
+    mindmapData: { rootNode },
+    markdownFiles
+  };
+}
