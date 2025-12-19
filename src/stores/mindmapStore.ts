@@ -22,6 +22,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
   const nodeDimensions = ref<Map<string, { width: number; height: number }>>(
     new Map(),
   );
+  const isDragging = ref(false); // Flag to skip layout during drag operations
 
   // --- Undo/Redo State ---
   const past = ref<string[]>([]); // Stack of past states (serialized rootNode)
@@ -419,6 +420,18 @@ export const useMindmapStore = defineStore("mindmap", () => {
       currentDimensions.height !== dimensions.height
     ) {
       nodeDimensions.value.set(nodeId, dimensions);
+      // Skip layout during drag - VueFlow handles visual updates
+      if (!isDragging.value) {
+        debouncedApplyLayout();
+      }
+    }
+  };
+
+  // Action to set dragging state (called from MindmapCanvas)
+  const setDragging = (dragging: boolean) => {
+    isDragging.value = dragging;
+    // When drag ends, apply any pending layout
+    if (!dragging) {
       debouncedApplyLayout();
     }
   };
@@ -1283,5 +1296,6 @@ export const useMindmapStore = defineStore("mindmap", () => {
     reparentNode,
     reorderNode,
     setNodePosition,
+    setDragging, // Optimization: skip layout during drag
   };
 });

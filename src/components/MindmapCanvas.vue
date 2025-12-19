@@ -97,8 +97,6 @@ const isInteractive = computed(() => !editorStore.isTextInputActive);
 const flowNodes = shallowRef<Node[]>([]);
 const flowEdges = shallowRef<Edge[]>([]);
 
-// Cache for node positions to detect real changes
-let lastNodePositions = new Map<string, { x: number; y: number }>();
 let layoutUpdateTimer: ReturnType<typeof setTimeout> | null = null;
 
 const updateLayoutElements = () => {
@@ -152,10 +150,6 @@ const updateLayoutElements = () => {
     // Update refs (shallowRef will only trigger re-render if array reference changes)
     flowNodes.value = nodes;
     flowEdges.value = edges;
-    
-    // Update position cache
-    lastNodePositions.clear();
-    nodes.forEach(n => lastNodePositions.set(n.id, { ...n.position }));
 };
 
 // Watch for structural changes (add/delete nodes, collapse, etc.)
@@ -168,6 +162,10 @@ watch(
         () => settingsStore.settings.lineStyle,
     ],
     () => {
+        // Skip updates during drag - VueFlow handles visual drag internally
+        // Note: We don't have direct access to isDragging here since it's in the store
+        // The store's setNodeDimensions already skips layout during drag
+        
         // Debounce updates to batch rapid changes
         if (layoutUpdateTimer) {
             clearTimeout(layoutUpdateTimer);
@@ -177,21 +175,6 @@ watch(
         }, 16);
     },
     { deep: true, immediate: true }
-);
-
-// Watch for position changes specifically (more frequent, handled separately)
-watch(
-    () => mindmapStore.allNodes.map(n => ({ id: n.id, pos: n.position })),
-    () => {
-        // Debounce position updates
-        if (layoutUpdateTimer) {
-            clearTimeout(layoutUpdateTimer);
-        }
-        layoutUpdateTimer = setTimeout(() => {
-            updateLayoutElements();
-        }, 16);
-    },
-    { deep: true }
 );
 
 const dropIndicatorStyle = computed(() => {
@@ -275,6 +258,9 @@ onNodeClick((event) => {
 });
 
 const onNodeDragStart = ({ node }: NodeDragEvent) => {
+    // Set dragging flag to skip reactive updates during drag (in store)
+    mindmapStore.setDragging(true);
+    
     // If dragging a node that is NOT currently selected, select it (and deselect others)
     if (!mindmapStore.selectedNodeIds.includes(node.id)) {
         mindmapStore.selectNode(node.id);
@@ -706,6 +692,10 @@ const onNodeDragStop = ({ node }: NodeDragEvent) => {
     // Cleanup
     draggedNodeInfo.value = null;
     dropAction.value = null;
+    
+    // Reset dragging flag and update layout (store will trigger layout on setDragging false)
+    mindmapStore.setDragging(false);
+    updateLayoutElements();
 };
 
 onNodeContextMenu((event) => {
