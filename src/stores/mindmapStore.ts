@@ -298,11 +298,10 @@ export const useMindmapStore = defineStore("mindmap", () => {
     const settingsStore = useSettingsStore();
     const HORIZONTAL_GAP = settingsStore.settings.layoutStyle.horizontalGap;
     const VERTICAL_GAP = settingsStore.settings.layoutStyle.verticalGap;
-    const tempRoot = JSON.parse(JSON.stringify(rootNode.value));
-
 
     const subtreeHeightCache = new Map<string, number>();
 
+    // 1. Calculate subtree heights (Read-only traversal)
     const getSubtreeHeight = (node: MindmapNode): number => {
       if (subtreeHeightCache.has(node.id)) {
         return subtreeHeightCache.get(node.id)!;
@@ -329,108 +328,80 @@ export const useMindmapStore = defineStore("mindmap", () => {
       return height;
     };
 
-    const positionNodes = (
+    // Calculate all heights first
+    getSubtreeHeight(rootNode.value);
+
+    // 2. Calculate positions (Read-only traversal with Position Map)
+    const nodePositions = new Map<string, { x: number; y: number }>();
+
+    const calculatePositions = (
       node: MindmapNode,
       level: number,
       startY: number,
+      parent: MindmapNode | null
     ) => {
       const mySize = nodeDimensions.value.get(node.id) || {
         width: 150,
         height: 40,
       };
-      const parent = findNodeAndParent(node.id, tempRoot).parent;
       const parentSize = parent
         ? nodeDimensions.value.get(parent.id) || { width: 150, height: 40 }
         : { width: 0 };
-      const parentX = parent && parent.position ? parent.position.x : -HORIZONTAL_GAP;
 
-      const mySubtreeHeight = getSubtreeHeight(node);
+      // Get parent position from map (calculated in previous recursive step)
+      const parentPos = parent ? nodePositions.get(parent.id) : null;
+      const parentX = parentPos ? parentPos.x : -HORIZONTAL_GAP;
+
+      const mySubtreeHeight = subtreeHeightCache.get(node.id) || 0;
       const myY = startY + mySubtreeHeight / 2 - mySize.height / 2;
       const myX = parentX + parentSize.width + HORIZONTAL_GAP;
 
-      node.position = { x: myX, y: myY };
+      // Store calculated position
+      nodePositions.set(node.id, { x: myX, y: myY });
 
       if (!collapsedNodeIds.value.includes(node.id)) {
         let childrenTotalHeight = 0;
         for (const child of node.children) {
-          childrenTotalHeight += getSubtreeHeight(child);
+          childrenTotalHeight += subtreeHeightCache.get(child.id) || 0;
         }
-
-        // Calculate vertical offset to center children relative to parent
-        // If parent's subtree height is determined by its own height (plus gap),
-        // we might want to center the children block within that available space?
-        // Actually, `mySubtreeHeight` IS the total height occupied by this node and its children.
-        // `childrenTotalHeight` is the height of just the children stack.
-        // We want the center of the children stack to align with the center of the parent node.
-        // Parent center Y = myY + mySize.height / 2
-        // Children stack center Y = startChildY + childrenTotalHeight / 2
-        // So: startChildY = Parent Center Y - childrenTotalHeight / 2
-
-        // Let's verify with the existing logic:
-        // myY = startY + mySubtreeHeight / 2 - mySize.height / 2
-        // Parent Center Y = startY + mySubtreeHeight / 2
-        // So startChildY = (startY + mySubtreeHeight / 2) - childrenTotalHeight / 2
-        //                = startY + (mySubtreeHeight - childrenTotalHeight) / 2
 
         let cumulativeChildY = startY + (mySubtreeHeight - childrenTotalHeight) / 2;
 
         for (const child of node.children) {
-          positionNodes(child, level + 1, cumulativeChildY);
-          cumulativeChildY += getSubtreeHeight(child);
+          calculatePositions(child, level + 1, cumulativeChildY, node);
+          cumulativeChildY += subtreeHeightCache.get(child.id) || 0;
         }
       }
     };
 
-    positionNodes(tempRoot, 0, 0);
+    calculatePositions(rootNode.value, 0, 0, null);
 
-    // Normalize Y positions so the root node's Y is 0
-    const yOffset = tempRoot.position.y;
-    const allTempNodes: MindmapNode[] = [];
-    const traverse = (node: MindmapNode) => {
-      allTempNodes.push(node);
-      node.children.forEach(traverse);
-    };
-    traverse(tempRoot);
+    // 3. Normalize Y positions so the root node's Y is 0
+    const rootPos = nodePositions.get(rootNode.value.id);
+    const yOffset = rootPos ? rootPos.y : 0;
 
-    allTempNodes.forEach((node) => {
-      if (node.position) {
-        node.position.y -= yOffset;
-      }
-    });
+    // 4. Apply positions to actual nodes in place (Write phase)
+    // We traverse the tree one last time to apply updates
+    const applyToNodes = (node: MindmapNode) => {
+      const newPos = nodePositions.get(node.id);
+      if (newPos) {
+        const adjustedPos = { x: newPos.x, y: newPos.y - yOffset };
 
-    // Update positions in place on the reactive rootNode.value
-    const updatePositionsInPlace = (
-      originalNode: MindmapNode,
-      calculatedNode: MindmapNode,
-    ) => {
-      if (
-        originalNode &&
-        calculatedNode &&
-        originalNode.id === calculatedNode.id
-      ) {
-        // Only update if position has actually changed to avoid unnecessary reactivity triggers
+        // Only update if position has actually changed to minimize reactivity triggers
         if (
-          !originalNode.position ||
-          !calculatedNode.position ||
-          originalNode.position.x !== calculatedNode.position.x ||
-          originalNode.position.y !== calculatedNode.position.y
+          !node.position ||
+          Math.abs(node.position.x - adjustedPos.x) > 0.1 ||
+          Math.abs(node.position.y - adjustedPos.y) > 0.1
         ) {
-          if (calculatedNode.position) {
-            originalNode.position = { ...calculatedNode.position }; // Create new object to ensure reactivity
-          }
+          node.position = adjustedPos;
         }
-        for (let i = 0; i < originalNode.children.length; i++) {
-          updatePositionsInPlace(
-            originalNode.children[i],
-            calculatedNode.children[i],
-          );
-        }
+      }
+      if (!collapsedNodeIds.value.includes(node.id)) {
+        node.children.forEach(applyToNodes);
       }
     };
 
-    if (rootNode.value && tempRoot) {
-      updatePositionsInPlace(rootNode.value, tempRoot);
-    }
+    applyToNodes(rootNode.value);
   };
 
   // Create a debounced version of the layout function

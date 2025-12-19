@@ -4,6 +4,7 @@ import {
     onMounted,
     onBeforeUnmount,
     ref,
+    shallowRef,
     nextTick,
     watch,
 } from "vue";
@@ -91,7 +92,16 @@ const dropdownRef = ref<InstanceType<typeof ElDropdown> | null>(null);
 // --- Computed Properties ---
 const isInteractive = computed(() => !editorStore.isTextInputActive);
 
-const layoutElements = computed(() => {
+// --- Optimized layoutElements using shallowRef and manual watch ---
+// This avoids recalculating the entire node/edge arrays on every position update
+const flowNodes = shallowRef<Node[]>([]);
+const flowEdges = shallowRef<Edge[]>([]);
+
+// Cache for node positions to detect real changes
+let lastNodePositions = new Map<string, { x: number; y: number }>();
+let layoutUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+
+const updateLayoutElements = () => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
     const startNode = mindmapStore.viewRootNodeId
@@ -101,7 +111,11 @@ const layoutElements = computed(() => {
           ).node
         : mindmapStore.rootNode;
 
-    if (!startNode) return { nodes, edges };
+    if (!startNode) {
+        flowNodes.value = [];
+        flowEdges.value = [];
+        return;
+    }
 
     const traverse = (node: MindmapNode, parentId: string | null = null) => {
         const position = node.position || { x: 0, y: 0 };
@@ -134,11 +148,51 @@ const layoutElements = computed(() => {
     };
 
     traverse(startNode);
-    return { nodes, edges };
-});
+    
+    // Update refs (shallowRef will only trigger re-render if array reference changes)
+    flowNodes.value = nodes;
+    flowEdges.value = edges;
+    
+    // Update position cache
+    lastNodePositions.clear();
+    nodes.forEach(n => lastNodePositions.set(n.id, { ...n.position }));
+};
 
-const flowNodes = computed(() => layoutElements.value.nodes);
-const flowEdges = computed(() => layoutElements.value.edges);
+// Watch for structural changes (add/delete nodes, collapse, etc.)
+watch(
+    [
+        () => mindmapStore.rootNode,
+        () => mindmapStore.viewRootNodeId,
+        () => mindmapStore.collapsedNodeIds,
+        () => props.selectedNodeId,
+        () => settingsStore.settings.lineStyle,
+    ],
+    () => {
+        // Debounce updates to batch rapid changes
+        if (layoutUpdateTimer) {
+            clearTimeout(layoutUpdateTimer);
+        }
+        layoutUpdateTimer = setTimeout(() => {
+            updateLayoutElements();
+        }, 16);
+    },
+    { deep: true, immediate: true }
+);
+
+// Watch for position changes specifically (more frequent, handled separately)
+watch(
+    () => mindmapStore.allNodes.map(n => ({ id: n.id, pos: n.position })),
+    () => {
+        // Debounce position updates
+        if (layoutUpdateTimer) {
+            clearTimeout(layoutUpdateTimer);
+        }
+        layoutUpdateTimer = setTimeout(() => {
+            updateLayoutElements();
+        }, 16);
+    },
+    { deep: true }
+);
 
 const dropIndicatorStyle = computed(() => {
     if (

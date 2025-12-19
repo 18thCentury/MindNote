@@ -39,6 +39,9 @@ const editText = ref("");
 const nodeEl = ref<HTMLElement | null>(null);
 
 let resizeObserver: ResizeObserver | null = null;
+let resizeDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+let lastReportedWidth = 0;
+let lastReportedHeight = 0;
 
 onMounted(() => {
     if (nodeEl.value) {
@@ -52,12 +55,27 @@ onMounted(() => {
                     // Fallback for older browsers or if borderBoxSize is missing
                     width = entry.contentRect.width;
                     height = entry.contentRect.height;
-                    // Adjust for padding/border if needed, but borderBoxSize should be there in Electron/Modern Browsers
                 }
-                mindmapStore.setNodeDimensions(props.data.id, {
-                    width,
-                    height,
-                });
+                
+                // Only update if dimensions actually changed (with tolerance)
+                if (
+                    Math.abs(width - lastReportedWidth) > 1 ||
+                    Math.abs(height - lastReportedHeight) > 1
+                ) {
+                    lastReportedWidth = width;
+                    lastReportedHeight = height;
+                    
+                    // Debounce the dimension update to avoid excessive layout recalculations
+                    if (resizeDebounceTimer) {
+                        clearTimeout(resizeDebounceTimer);
+                    }
+                    resizeDebounceTimer = setTimeout(() => {
+                        mindmapStore.setNodeDimensions(props.data.id, {
+                            width: lastReportedWidth,
+                            height: lastReportedHeight,
+                        });
+                    }, 16); // ~1 frame at 60fps
+                }
             }
         });
         resizeObserver.observe(nodeEl.value);
@@ -69,6 +87,9 @@ onBeforeUnmount(() => {
         resizeObserver.unobserve(nodeEl.value);
     }
     resizeObserver = null;
+    if (resizeDebounceTimer) {
+        clearTimeout(resizeDebounceTimer);
+    }
 });
 
 const nodeClass = computed(() => {
