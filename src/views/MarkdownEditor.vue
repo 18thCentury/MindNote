@@ -205,20 +205,22 @@ onBeforeUnmount(() => {
     padding-top: 5px !important;
 }
 
-/* 隐藏 WYSIWYG 中原本的 LaTeX 源码（可选，如果你想只看结果） */
-/* 或者给渲染结果加一点边距 */
-.markdown-editor-wrapper :deep(.tui-editor-katex-res) {
-  margin: 0 4px;
-  vertical-align: middle;
-  display: inline-block;
+/* 隐藏源码的关键 */
+.markdown-editor-wrapper :deep( .hidden-latex-source) {
+  display: none !important;
 }
 
-/* 如果是块级公式 $$...$$ */
-.markdown-editor-wrapper :deep(.tui-editor-katex-res .katex-display) {
-  margin: 1em 0;
-  background: #f8f9fa;
-  padding: 10px;
-  border-radius: 4px;
+/* 渲染结果的样式 */
+.markdown-editor-wrapper :deep(.tui-editor-katex-rendered) {
+  cursor: pointer;
+  display: inline-block;
+  user-select: none;
+}
+
+/* 如果是块级公式，确保它换行显示 */
+.markdown-editor-wrapper :deep(.tui-editor-katex-rendered .katex-display) {
+  margin: 0.5em 0;
+  display: block;
 }
 
 </style>

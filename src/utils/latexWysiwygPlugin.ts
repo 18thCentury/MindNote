@@ -11,11 +11,10 @@ export function latexWysiwygPlugin(context: PluginContext): PluginInfo {
                 props: {
                     decorations(state) {
                         const decorations: Decoration[] = [];
-                        const { doc } = state;
+                        const { doc, selection } = state;
+                        const { from, to } = selection;
 
-                        // 匹配 $$...$$ (Block) 和 $...$ (Inline)
-                        // 注意：正则需要处理跨行和转义
-                        const regex = /(\$\$[^\$]*?\$\$)|(\$[^\$\n ]+\$)/g;
+                        const regex = /(\$\$[^\$]+\$\$)|(\$[^\$\n]+\$)/g;
 
                         doc.descendants((node, pos) => {
                             if (node.isText && node.text) {
@@ -24,30 +23,39 @@ export function latexWysiwygPlugin(context: PluginContext): PluginInfo {
                                     const start = pos + match.index;
                                     const end = start + match[0].length;
 
-                                    const fullMatch = match[0];
-                                    const isBlock = fullMatch.startsWith('$$');
-                                    const formula = isBlock
-                                        ? fullMatch.slice(2, -2)
-                                        : fullMatch.slice(1, -1);
+                                    // 判断光标是否在公式内
+                                    const isEditing = from >= start && to <= end;
 
-                                    try {
-                                        // 生成 KaTeX HTML
-                                        const html = katex.renderToString(formula, {
-                                            displayMode: isBlock,
-                                            throwOnError: false
-                                        });
+                                    if (!isEditing) {
+                                        const fullMatch = match[0];
+                                        const isBlock = fullMatch.startsWith('$$');
+                                        const formula = isBlock ? fullMatch.slice(2, -2) : fullMatch.slice(1, -1);
 
-                                        decorations.push(
-                                            Decoration.widget(end, () => {
-                                                const dom = document.createElement('span');
-                                                dom.className = 'tui-editor-katex-res';
-                                                dom.style.userSelect = 'none'; // 防止干扰光标选择
-                                                dom.innerHTML = html;
-                                                return dom;
-                                            }, { side: 1 }) // side: 1 确保渲染在文本后面或上方
-                                        );
-                                    } catch (e) {
-                                        console.error('KaTeX error:', e);
+                                        try {
+                                            const html = katex.renderToString(formula, {
+                                                displayMode: isBlock,
+                                                throwOnError: false,
+                                            });
+
+                                            // 1. 隐藏原始文本：添加一个自定义 class
+                                            decorations.push(
+                                                Decoration.inline(start, end, {
+                                                    class: 'hidden-latex-source',
+                                                })
+                                            );
+
+                                            // 2. 在相同位置渲染 KaTeX Widget
+                                            decorations.push(
+                                                Decoration.widget(start, () => {
+                                                    const dom = document.createElement('span');
+                                                    dom.className = 'tui-editor-katex-rendered';
+                                                    dom.innerHTML = html;
+                                                    return dom;
+                                                })
+                                            );
+                                        } catch (e) {
+                                            console.error(e);
+                                        }
                                     }
                                 }
                             }
