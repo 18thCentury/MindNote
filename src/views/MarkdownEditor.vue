@@ -5,6 +5,9 @@ import "@toast-ui/editor/dist/toastui-editor.css";
 import "@toast-ui/editor/dist/theme/toastui-editor-dark.css"; // Import Dark Theme
 import tableExtension from "@toast-ui/editor-plugin-table-merged-cell";
 import "@toast-ui/editor-plugin-table-merged-cell/dist/toastui-editor-plugin-table-merged-cell.css";
+import "katex/dist/katex.css"; // Import KaTeX CSS
+import { latexPlugin } from "../utils/latexPlugin";
+
 import { useFileStore } from "../stores/fileStore";
 import { useEditorStore } from "../stores/editorStore";
 import { useSettingsStore } from "../stores/settingsStore"; // Import Settings Store
@@ -67,7 +70,7 @@ onMounted(() => {
             initialEditType: "wysiwyg",
             previewStyle: "vertical",
             initialValue: props.initialContent,
-            plugins: [tableExtension],
+            plugins: [tableExtension, latexPlugin],
             // theme: isDarkMode.value ? 'dark' : 'light', // Some versions support this, but CSS import + class is safer
             hooks: {
                 addImageBlobHook: async (blob, callback) => {
