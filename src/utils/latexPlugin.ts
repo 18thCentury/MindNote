@@ -3,65 +3,19 @@ import katex from 'katex';
 
 export function latexPlugin(context: PluginContext): PluginInfo {
     return {
-        // specific to TUI Editor v3 to enable widget rules in WYSIWYG
-        widgetRules: [
-            {
-                // Block math $$ ... $$
-                rule: /\$\$([\s\S]*?)\$\$/g,
-                toDOM(text: string) {
-                    // KEY FIX: Use 'span' instead of 'div' because TUI editor (prosemirror) 
-                    // might be inserting this inside a paragraph. 
-                    // Putting a div inside a p is invalid HTML and can cause split-paragraphs behavior.
-                    const el = document.createElement('span');
-                    el.className = 'katex-block-widget';
-                    // Use inline-flex or flex to behave like a block visually but be safe in inline contexts if needed
-                    // Or strictly 'block' if we are sure TUI handles it. 
-                    // But 'span' with display: block is safer than 'div' regarding parser behavior.
-                    el.style.display = 'flex';
-                    el.style.justifyContent = 'center';
-                    el.style.width = '100%';
-
-                    let expression = text.substring(2, text.length - 2);
-                    expression = expression.replace(/\\_/g, '_');
-
-                    try {
-                        katex.render(expression, el, { displayMode: true, throwOnError: false });
-                    } catch (e) {
-                        el.textContent = 'Invalid Formula';
-                    }
-                    return el;
-                },
-            },
-            {
-                // Inline math $ ... $
-                rule: /\$([^$\n]+)\$/g,
-                toDOM(text: string) {
-                    const el = document.createElement('span');
-                    el.className = 'katex-inline-widget';
-
-                    let expression = text.substring(1, text.length - 1);
-                    expression = expression.replace(/\\_/g, '_');
-
-                    try {
-                        katex.render(expression, el, { displayMode: false, throwOnError: false });
-                    } catch (e) {
-                        el.textContent = 'Invalid Formula';
-                    }
-                    return el;
-                },
-            }
-        ],
-
         toHTMLRenderers: {
             text(node: any, context: any): any[] | null {
                 const literal = node.literal || '';
+                console.log(literal);
+
+
                 // Optimization: if no $, just return the text node directly to be safe
                 if (!literal.includes('$')) {
                     return [{ type: 'text', content: literal }];
                 }
 
                 const tokens: any[] = [];
-                const combinedRegex = /(\$\$[^$\n]*?\$\$)|(\$[^$\n]+\$)/g;
+                const combinedRegex = /(\$\$[^\$]*?\$\$)|(\$[^\$\n]+\$)/g;
 
                 let lastIdx = 0;
                 let match;

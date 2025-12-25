@@ -7,7 +7,7 @@ import tableExtension from "@toast-ui/editor-plugin-table-merged-cell";
 import "@toast-ui/editor-plugin-table-merged-cell/dist/toastui-editor-plugin-table-merged-cell.css";
 import "katex/dist/katex.css"; // Import KaTeX CSS
 import { latexPlugin } from "../utils/latexPlugin";
-
+import { latexWysiwygPlugin } from "../utils/latexWysiwygPlugin";
 import { useFileStore } from "../stores/fileStore";
 import { useEditorStore } from "../stores/editorStore";
 import { useSettingsStore } from "../stores/settingsStore"; // Import Settings Store
@@ -70,7 +70,7 @@ onMounted(() => {
             initialEditType: "wysiwyg",
             previewStyle: "vertical",
             initialValue: props.initialContent,
-            plugins: [tableExtension, latexPlugin],
+            plugins: [tableExtension, latexPlugin,latexWysiwygPlugin],
             // theme: isDarkMode.value ? 'dark' : 'light', // Some versions support this, but CSS import + class is safer
             hooks: {
                 addImageBlobHook: async (blob, callback) => {
@@ -204,4 +204,21 @@ onBeforeUnmount(() => {
     padding-left: 5px !important;
     padding-top: 5px !important;
 }
+
+/* 隐藏 WYSIWYG 中原本的 LaTeX 源码（可选，如果你想只看结果） */
+/* 或者给渲染结果加一点边距 */
+.markdown-editor-wrapper :deep(.tui-editor-katex-res) {
+  margin: 0 4px;
+  vertical-align: middle;
+  display: inline-block;
+}
+
+/* 如果是块级公式 $$...$$ */
+.markdown-editor-wrapper :deep(.tui-editor-katex-res .katex-display) {
+  margin: 1em 0;
+  background: #f8f9fa;
+  padding: 10px;
+  border-radius: 4px;
+}
+
 </style>
