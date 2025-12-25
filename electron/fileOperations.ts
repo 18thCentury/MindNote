@@ -73,15 +73,13 @@ export async function unpackMnFile(mnFilePath: string): Promise<{
   const textDir = path.join(tempDirPath, "text");
   try {
     const files = await fs.readdir(textDir);
-    for (const file of files) {
-      if (path.extname(file) === ".md") {
-        const content = await readMarkdown(
-          tempDirPath,
-          path.join("text", file),
-        );
-        markdownFiles[file] = content;
-      }
-    }
+    const mdFiles = files.filter((file) => path.extname(file) === ".md");
+    const contents = await Promise.all(
+      mdFiles.map((file) => readMarkdown(tempDirPath, path.join("text", file))),
+    );
+    mdFiles.forEach((file, i) => {
+      markdownFiles[file] = contents[i];
+    });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     console.warn(`Directory not found: ${textDir}. No markdown files loaded.`);

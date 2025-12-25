@@ -1,6 +1,6 @@
 // src/stores/fileStore.ts
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, shallowRef } from "vue";
 import { ipcRenderer } from "../utils/ipcRenderer"; // 封装的 IPC 通信
 import { useMindmapStore } from "./mindmapStore";
 import { useEditorStore } from "./editorStore";
@@ -14,7 +14,7 @@ export const useFileStore = defineStore("file", () => {
   const currentFilePath = ref<string | null>(null); // 当前打开的 .mn 文件路径
   const saveStatus = ref<SaveStatus>("saved"); // 文件保存状态
   const tempDir = ref<string | null>(null); // 解压后的临时目录路径
-  const allMarkdownContents = ref<Record<string, string>>({}); // 所有加载的 Markdown 内容
+  const allMarkdownContents = shallowRef<Record<string, string>>({}); // 所有加载的 Markdown 内容
 
   // Getter: 判断文件是否已打开 (只要有临时目录，就说明有文件加载)
   const isFileOpen = computed(() => tempDir.value !== null);

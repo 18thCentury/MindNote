@@ -248,7 +248,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
       // Build the nodeMap for O(1) lookups
       buildNodeMap();
 
-      applyLayout(); // Apply layout immediately on initial data load
+      debouncedApplyLayout(); // Apply layout immediately on initial data load
       selectedNodeIds.value = [data.id]; // 默认选中根节点
       viewRootNodeId.value = data.id; // 默认视图根节点也是实际根节点
 
@@ -811,6 +811,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
           // b. 清理 Markdown 内容
           if (node.markdown) {
             fileStore.deleteMarkdownContent(node.markdown);
+            fileStore.deleteTempFile(`text/${node.markdown}`);
           }
           // c. 清理图片文件
           if (node.images && node.images.length > 0) {
