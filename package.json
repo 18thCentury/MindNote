@@ -4,7 +4,7 @@
     "type": "git",
     "url": "https://github.com/18thCentury/MindNote.git"
   },
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "wwg works",
   "main": "dist-electron/electron/main.js",
   "scripts": {
