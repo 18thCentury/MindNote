@@ -13,6 +13,8 @@ import { useEditorStore } from "../stores/editorStore";
 import { useSettingsStore } from "../stores/settingsStore"; // Import Settings Store
 import { useUIStore } from "../stores/uiStore";
 import { ElMessage } from "element-plus";
+import SearchReplace from "../components/SearchReplace.vue";
+import { findNext, findPrev, replaceCurrent, replaceAll } from "../utils/editorSearch";
 
 interface Props {
     initialContent: string;
@@ -28,6 +30,41 @@ const fileStore = useFileStore();
 const editorStore = useEditorStore();
 const settingsStore = useSettingsStore();
 const uiStore = useUIStore();
+
+const showSearchReplace = ref(false);
+
+const openSearch = () => {
+    showSearchReplace.value = true;
+};
+
+const closeSearch = () => {
+    showSearchReplace.value = false;
+    editorInstance?.focus();
+};
+
+const handleSearchNext = (text: string) => {
+    if (editorInstance) findNext(editorInstance, text);
+};
+
+const handleSearchPrev = (text: string) => {
+    if (editorInstance) findPrev(editorInstance, text);
+};
+
+const handleReplace = (searchText: string, replaceText: string) => {
+    if (editorInstance) replaceCurrent(editorInstance, searchText, replaceText);
+};
+
+const handleReplaceAll = (searchText: string, replaceText: string) => {
+    if (editorInstance) {
+        const count = replaceAll(editorInstance, searchText, replaceText);
+        if (count > 0) {
+            ElMessage.success(`Replaced ${count} occurrences.`);
+        } else {
+            ElMessage.info('No matches found to replace.');
+        }
+    }
+};
+
 
 const systemDarkMode = ref(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
 
@@ -114,6 +151,23 @@ onMounted(() => {
             editorStore.setTextInputActive(false);
         });
     }
+
+    // Add Keydown listener for Ctrl+F
+    const handleKeydown = (e: KeyboardEvent) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+            e.preventDefault();
+            openSearch();
+        }
+    };
+    
+    // Attach to editor element or window?
+    // Window is safer to catch it when editor has focus
+    window.addEventListener('keydown', handleKeydown);
+    
+    // Store cleanup
+    onBeforeUnmount(() => {
+        window.removeEventListener('keydown', handleKeydown);
+    });
 });
 
 watch(
@@ -139,6 +193,14 @@ onBeforeUnmount(() => {
 <template>
     <div class="markdown-editor-wrapper" @mousedown.capture="uiStore.setActivePanel('editor')">
         <div ref="editorRef" class="toast-ui-editor"></div>
+        <SearchReplace 
+            :visible="showSearchReplace"
+            @close="closeSearch"
+            @search-next="handleSearchNext"
+            @search-prev="handleSearchPrev"
+            @replace="handleReplace"
+            @replace-all="handleReplaceAll"
+        />
     </div>
 </template>
 
@@ -146,6 +208,7 @@ onBeforeUnmount(() => {
 .markdown-editor-wrapper {
     height: 100%;
     width: 100%;
+    position: relative; /* Ensure search box is positioned relative to this */
 }
 
 .toast-ui-editor {
