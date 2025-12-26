@@ -59,7 +59,8 @@
       {
         "provider": "github",
         "owner": "18thCentury",
-        "repo": "MindNote"
+        "repo": "MindNote",
+        "releaseType": "release"
       }
     ],
     "fileAssociations": [
