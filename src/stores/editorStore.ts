@@ -29,19 +29,28 @@ export const useEditorStore = defineStore("editor", () => {
   };
 
   // Action: 更新 Markdown 内容（用户输入）
-  const updateMarkdownContent = (content: string) => {
-    currentMarkdownContent.value = content;
+  const updateMarkdownContent = (content: string, nodeId?: string) => {
+    const targetNodeId = nodeId || currentMarkdownNodeId.value;
+
+    // Only update the "current" content if the nodeId matches or isn't provided
+    if (!nodeId || nodeId === currentMarkdownNodeId.value) {
+      currentMarkdownContent.value = content;
+    }
 
     try {
       // 触发文件保存状态更新
       const fileStore = useFileStore();
-      if (currentMarkdownNodeId.value) {
+      if (targetNodeId) {
         const mindmapStore = useMindmapStore();
-        const node = mindmapStore.allNodes.find(
-          (n) => n.id === currentMarkdownNodeId.value,
+        // Use O(1) lookup if available, or find
+        const node = mindmapStore.getNodeById ? mindmapStore.getNodeById(targetNodeId) : mindmapStore.allNodes.find(
+          (n) => n.id === targetNodeId,
         );
+
         if (node) {
           fileStore.setMarkdownContent(node.markdown, content);
+        } else {
+          console.warn('[editorStore] node not found for nodeId:', targetNodeId);
         }
       }
     } catch (error) {

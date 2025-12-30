@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onBeforeUnmount } from "vue";
+import { ref, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
 import MindmapCanvas from "../components/MindmapCanvas.vue";
 import MarkdownEditor from "./MarkdownEditor.vue";
 import { useMindmapStore } from "../stores/mindmapStore";
@@ -16,6 +16,9 @@ const fileStore = useFileStore();
 // Splitter state
 const asideWidth = ref("50%");
 const isDragging = ref(false);
+
+// Editor lifecycle control (Hard Reset)
+const renderEditor = ref(true);
 
 const handleMouseDown = (e: MouseEvent) => {
     e.preventDefault();
@@ -41,17 +44,30 @@ const handleMouseUp = () => {
 
 // 监听选中的节点，加载对应的 Markdown
 watch(
-    () => mindmapStore.selectedNode,
-    (newNode) => {
-        if (newNode && newNode.markdown) {
-            const content = fileStore.getMarkdownContent(newNode.markdown);
-            editorStore.setMarkdownContent(content, newNode.id);
+    () => mindmapStore.primarySelectedNodeId,
+    async (newNodeId) => {
+        // Trigger hard reset: destroy editor component first
+        renderEditor.value = false;
+        
+        if (newNodeId) {
+            const node = mindmapStore.getNodeById(newNodeId);
+            if (node && node.markdown) {
+                const content = fileStore.getMarkdownContent(node.markdown);
+                editorStore.setMarkdownContent(content, node.id);
+            } else {
+                editorStore.setMarkdownContent("", "");
+            }
         } else {
             editorStore.setMarkdownContent("", "");
         }
+
+        // Recreate editor component with a slight delay to ensure complete destruction
+        setTimeout(() => {
+            renderEditor.value = true;
+        }, 50);
     },
     { immediate: true },
-); // 立即执行一次，加载初始节点
+);
 
 // 监听编辑器内容变化，标记为未保存
 watch(
@@ -68,8 +84,8 @@ const handleNodeSelected = (nodeId: string) => {
 };
 
 // 模拟 MarkdownEditor 内容变化事件
-const handleEditorContentChanged = (content: string) => {
-    editorStore.updateMarkdownContent(content);
+const handleEditorContentChanged = (content: string, nodeId: string) => {
+    editorStore.updateMarkdownContent(content, nodeId);
 };
 
 const handleGlobalKeydown = (e: KeyboardEvent) => {
@@ -130,6 +146,8 @@ onBeforeUnmount(() => {
         <div class="splitter" @mousedown="handleMouseDown"></div>
         <el-main class="markdown-editor-area">
             <MarkdownEditor
+                v-if="renderEditor"
+                :key="editorStore.currentMarkdownNodeId || 'none'"
                 :initialContent="editorStore.currentMarkdownContent"
                 @content-changed="handleEditorContentChanged"
                 :currentNodeId="editorStore.currentMarkdownNodeId"

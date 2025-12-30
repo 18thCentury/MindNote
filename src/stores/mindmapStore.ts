@@ -1319,6 +1319,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
     // State
     rootNode,
     selectedNodeId: primarySelectedNodeId, // Backward compatibility alias if needed, or just use primary
+    primarySelectedNodeId, // Direct export for reactive watching
     selectedNodeIds,
     pinnedNodeIds,
     viewRootNodeId,

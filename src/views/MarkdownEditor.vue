@@ -32,6 +32,11 @@ const uiStore = useUIStore();
 
 const showSearchReplace = ref(false);
 
+// Track programmatic content updates to prevent change events from emitting stale content
+let isSettingContent = false;
+// Capture the nodeId that the editor is currently loading/displaying
+const currentLoadingNodeId = ref<string | null>(props.currentNodeId);
+
 const openSearch = () => {
     showSearchReplace.value = true;
 };
@@ -107,7 +112,6 @@ onMounted(() => {
             previewStyle: "vertical",
             initialValue: props.initialContent,
             plugins: [tableExtension, latexPlugin],
-            // theme: isDarkMode.value ? 'dark' : 'light', // Some versions support this, but CSS import + class is safer
             hooks: {
                 addImageBlobHook: async (blob, callback) => {
                     if (!fileStore.tempDir || !props.currentNodeId) {
@@ -139,7 +143,16 @@ onMounted(() => {
         });
 
         editorInstance.on("change", () => {
-            emit("content-changed", editorInstance?.getMarkdown() || "");
+            // Skip change events during programmatic content updates
+            if (isSettingContent) {
+                return;
+            }
+            
+            // Emit content along with the nodeId it belongs to
+            if (currentLoadingNodeId.value) {
+                const content = editorInstance?.getMarkdown() || "";
+                emit("content-changed", content, currentLoadingNodeId.value);
+            }
         });
 
         editorInstance.on("focus", () => {
@@ -165,20 +178,39 @@ onMounted(() => {
     
     // Store cleanup
     onBeforeUnmount(() => {
+        console.log('[Editor] onBeforeUnmount, nodeId:', currentLoadingNodeId.value);
         window.removeEventListener('keydown', handleKeydown);
+        // Explicitly reset editor store states when unmounting
+        editorStore.setTextInputActive(false);
     });
+    
+    console.log('[Editor] onMounted COMPLETE, nodeId:', currentLoadingNodeId.value);
 });
 
 watch(
     () => props.initialContent,
     (newContent) => {
         if (editorInstance && editorInstance.getMarkdown() !== newContent) {
+            // Set flag BEFORE calling setMarkdown to block any sync change events
+            isSettingContent = true;
+            // Capture the nodeId this content belongs to
+            currentLoadingNodeId.value = props.currentNodeId;
+            
             editorInstance.setMarkdown(newContent, false);
+            
+            // Clear flag after a delay to handle WYSIWYG async rendering
+            setTimeout(() => {
+                isSettingContent = false;
+            }, 150);
+        } else {
+            // Even if content matches, make sure our tracking ID is updated
+            currentLoadingNodeId.value = props.currentNodeId;
         }
     },
 );
 
 onBeforeUnmount(() => {
+    console.log('[Editor] Final onBeforeUnmount cleanup, nodeId:', currentLoadingNodeId.value);
     if (window.matchMedia) {
         window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', updateSystemTheme);
     }
@@ -286,7 +318,7 @@ onBeforeUnmount(() => {
   margin: 10px 0;
 }
 
-.tui-latex-node-container {
+.markdown-editor-wrapper :deep(.tui-latex-node-container) {
     cursor: pointer;
     display: inline-block;
     padding: 2px 4px;
@@ -294,23 +326,23 @@ onBeforeUnmount(() => {
     transition: background-color 0.2s;
 }
 
-.tui-latex-node-container:hover {
+.markdown-editor-wrapper :deep(.tui-latex-node-container:hover) {
     background-color: rgba(64, 158, 255, 0.1);
 }
 
-.tui-latex-node-container.block {
+.markdown-editor-wrapper :deep(.tui-latex-node-container.block) {
     display: block;
     text-align: center;
     margin: 10px 0;
 }
 
-.katex-block {
+.markdown-editor-wrapper :deep(.katex-block) {
     text-align: center;
     margin: 1em 0;
 }
 
 /* 块级公式样式修复 */
-.tui-latex-res-widget.is-block {
+.markdown-editor-wrapper :deep(.tui-latex-res-widget.is-block) {
     display: block;
     text-align: center;
     padding: 12px 0;
@@ -320,19 +352,19 @@ onBeforeUnmount(() => {
     transition: background 0.2s;
 }
 
-.tui-latex-res-widget.is-block:hover {
+.markdown-editor-wrapper :deep(.tui-latex-res-widget.is-block:hover) {
     background-color: #f0f7ff;
 }
 
 /* 预览区中 $$ 模拟块级的效果 (因为预览区强制用了 span 避免报错) */
-.katex-display {
+.markdown-editor-wrapper :deep(.katex-display) {
     display: block;
     text-align: center;
     margin: 1em 0;
 }
 
 /* 确保行内公式垂直对齐 */
-.tui-latex-res-widget.is-inline {
+.markdown-editor-wrapper :deep(.tui-latex-res-widget.is-inline) {
     cursor: pointer;
     padding: 0 2px;
 }

@@ -32,10 +32,16 @@ export const useFileStore = defineStore("file", () => {
     return allMarkdownContents.value[filename] || "";
   };
   const setMarkdownContent = (filename: string, value: string) => {
-    allMarkdownContents.value[filename] = value;
+    // Use immutable update to trigger shallowRef reactivity
+    allMarkdownContents.value = {
+      ...allMarkdownContents.value,
+      [filename]: value
+    };
   };
   const deleteMarkdownContent = (filename: string) => {
-    delete allMarkdownContents.value[filename];
+    // Use immutable update to trigger shallowRef reactivity
+    const { [filename]: _, ...rest } = allMarkdownContents.value;
+    allMarkdownContents.value = rest;
   };
 
   // Action: 打开 .mn 文件
