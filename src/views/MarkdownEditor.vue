@@ -309,4 +309,34 @@ onBeforeUnmount(() => {
     margin: 1em 0;
 }
 
+/* 块级公式样式修复 */
+.tui-latex-res-widget.is-block {
+    display: block;
+    text-align: center;
+    padding: 12px 0;
+    background-color: #fafafa;
+    margin: 8px 0;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.tui-latex-res-widget.is-block:hover {
+    background-color: #f0f7ff;
+}
+
+/* 预览区中 $$ 模拟块级的效果 (因为预览区强制用了 span 避免报错) */
+.katex-display {
+    display: block;
+    text-align: center;
+    margin: 1em 0;
+}
+
+/* 确保行内公式垂直对齐 */
+.tui-latex-res-widget.is-inline {
+    cursor: pointer;
+    padding: 0 2px;
+}
+
+
+
 </style>
