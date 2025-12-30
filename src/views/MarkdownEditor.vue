@@ -7,7 +7,6 @@ import tableExtension from "@toast-ui/editor-plugin-table-merged-cell";
 import "@toast-ui/editor-plugin-table-merged-cell/dist/toastui-editor-plugin-table-merged-cell.css";
 import "katex/dist/katex.css"; // Import KaTeX CSS
 import { latexPlugin } from "../utils/latexPlugin";
-import { latexWysiwygPlugin } from "../utils/latexWysiwygPlugin";
 import { useFileStore } from "../stores/fileStore";
 import { useEditorStore } from "../stores/editorStore";
 import { useSettingsStore } from "../stores/settingsStore"; // Import Settings Store
@@ -107,7 +106,7 @@ onMounted(() => {
             initialEditType: "wysiwyg",
             previewStyle: "vertical",
             initialValue: props.initialContent,
-            plugins: [tableExtension, latexPlugin,latexWysiwygPlugin],
+            plugins: [tableExtension, latexPlugin],
             // theme: isDarkMode.value ? 'dark' : 'light', // Some versions support this, but CSS import + class is safer
             hooks: {
                 addImageBlobHook: async (blob, callback) => {
@@ -269,21 +268,45 @@ onBeforeUnmount(() => {
 }
 
 /* 隐藏源码的关键 */
-.markdown-editor-wrapper :deep( .hidden-latex-source) {
+.markdown-editor-wrapper :deep(.tui-latex-hidden-source) {
   display: none !important;
 }
 
-/* 渲染结果的样式 */
-.markdown-editor-wrapper :deep(.tui-editor-katex-rendered) {
+/* 渲染结果的样式 (Widget) */
+.markdown-editor-wrapper :deep(.tui-latex-rendered-widget) {
   cursor: pointer;
   display: inline-block;
   user-select: none;
+  padding: 0 4px;
 }
 
-/* 如果是块级公式，确保它换行显示 */
-.markdown-editor-wrapper :deep(.tui-editor-katex-rendered .katex-display) {
-  margin: 0.5em 0;
+.markdown-editor-wrapper :deep(.tui-latex-rendered-widget.block) {
   display: block;
+  text-align: center;
+  margin: 10px 0;
+}
+
+.tui-latex-node-container {
+    cursor: pointer;
+    display: inline-block;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.tui-latex-node-container:hover {
+    background-color: rgba(64, 158, 255, 0.1);
+}
+
+.tui-latex-node-container.block {
+    display: block;
+    text-align: center;
+    margin: 10px 0;
+}
+
+.katex-block {
+    text-align: center;
+    margin: 1em 0;
 }
 
 </style>
