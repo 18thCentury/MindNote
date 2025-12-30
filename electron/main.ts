@@ -273,12 +273,12 @@ if (!gotTheLock) {
           return null; // User canceled
         }
 
-        // await fileOperations.packMnFile(
-        //   filePath,
-        //   tempDir,
-        //   mindmapData,
-        //   markdownFiles,
-        // );
+        await fileOperations.packMnFile(
+          filePath,
+          tempDir,
+          mindmapData,
+          markdownFiles,
+        );
         return { success: true, filePath };
       } catch (error) {
         console.error("Failed to save file as:", error);

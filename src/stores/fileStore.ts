@@ -32,11 +32,14 @@ export const useFileStore = defineStore("file", () => {
     return allMarkdownContents.value[filename] || "";
   };
   const setMarkdownContent = (filename: string, value: string) => {
-    // Use immutable update to trigger shallowRef reactivity
-    allMarkdownContents.value = {
-      ...allMarkdownContents.value,
-      [filename]: value
-    };
+    // Only mark as unsaved if the content actually changed
+    if (allMarkdownContents.value[filename] !== value) {
+      allMarkdownContents.value = {
+        ...allMarkdownContents.value,
+        [filename]: value
+      };
+      markAsUnsaved();
+    }
   };
   const deleteMarkdownContent = (filename: string) => {
     // Use immutable update to trigger shallowRef reactivity
@@ -96,12 +99,12 @@ export const useFileStore = defineStore("file", () => {
       // 1. 确保最新的编辑器内容被同步到 allMarkdownContents
       //
       if (editorStore.currentMarkdownNodeId) {
-        const node = mindmapStore.allNodes.find(
-          (n) => n.id === editorStore.currentMarkdownNodeId,
-        );
+        const node = mindmapStore.getNodeById(editorStore.currentMarkdownNodeId);
         if (node) {
-          allMarkdownContents.value[node.markdown] =
-            editorStore.currentMarkdownContent;
+          allMarkdownContents.value = {
+            ...allMarkdownContents.value,
+            [node.markdown]: editorStore.currentMarkdownContent
+          };
         }
       }
 
@@ -227,12 +230,12 @@ export const useFileStore = defineStore("file", () => {
       const editorStore = useEditorStore();
 
       if (editorStore.currentMarkdownNodeId) {
-        const node = mindmapStore.allNodes.find(
-          (n) => n.id === editorStore.currentMarkdownNodeId,
-        );
+        const node = mindmapStore.getNodeById(editorStore.currentMarkdownNodeId);
         if (node) {
-          allMarkdownContents.value[node.markdown] =
-            editorStore.currentMarkdownContent;
+          allMarkdownContents.value = {
+            ...allMarkdownContents.value,
+            [node.markdown]: editorStore.currentMarkdownContent
+          };
         }
       }
 

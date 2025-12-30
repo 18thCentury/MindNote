@@ -36,6 +36,7 @@ export function latexPlugin(context: PluginContext): PluginInfo {
             customInline(node: any) {
                 // 直接返回 null 可能会触发核心转换器的 bug (Cannot read properties of undefined reading 'n')
                 // 返回 text 类型并保留原字字面值是最稳妥的逃逸方式
+                console.log("[node]", node)
                 return { type: 'text', content: node.literal || '' };
             },
 

@@ -98,6 +98,14 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
             e.preventDefault();
             fileStore.openMnFile();
         }
+        if (e.key === 's') {
+            e.preventDefault();
+            if (e.shiftKey) {
+                fileStore.saveCurrentFileAs();
+            } else {
+                fileStore.saveCurrentFile();
+            }
+        }
     }
 };
 
