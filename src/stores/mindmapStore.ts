@@ -855,7 +855,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
       }
     }
 
-    debouncedApplyLayout(); // Apply layout after deleting
+    applyLayout(); // Apply layout immediately (Synchronous) after deleting to avoid stutter
     fileStore.markAsUnsaved();
 
     // Update selection
