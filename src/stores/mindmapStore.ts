@@ -11,6 +11,7 @@ import { useSettingsStore } from "./settingsStore";
 
 import { MindmapNode, MindmapEdge } from "../types/shared_types";
 import { ElMessage } from "element-plus";
+import { domMeasurer } from "../utils/domMeasurer";
 
 export const useMindmapStore = defineStore("mindmap", () => {
   const rootNode = ref<MindmapNode | null>(null); // 当前思维导图的实际根节点
@@ -505,7 +506,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
   );
 
   // Action: 添加子节点
-  const addChildNode = (parentNodeId: string, text: string = "新子节点") => {
+  const addChildNode = (parentNodeId: string, text: string = "New Node") => {
     if (!rootNode.value) return;
 
     pushState(); // Save state before modification
@@ -549,8 +550,14 @@ export const useMindmapStore = defineStore("mindmap", () => {
         position: { x: initialX, y: initialY }, // Rough initial position
       };
       parentNode.children.push(newNode); // Direct modification
+
+      // Optimization: Create initial dimensions cache to prevent layout thrashing
+      // We use the standardized "New Node" text for the initial measurement
+      const initialDimensions = domMeasurer.getStandardDimensions(settingsStore.settings.nodeStyle);
+      nodeDimensions.value.set(newNode.id, initialDimensions);
+
       nodeMap.value.set(newNode.id, newNode); // Add to nodeMap
-      debouncedApplyLayout(); // Apply layout after adding
+      applyLayout(); // Apply layout immediately (Synchronous)
       selectAndPanToNode(newNode.id); // Select and pan to the new node
 
       // Initialize markdown content for the new node in fileStore
@@ -560,7 +567,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
   };
 
   // Action: 添加兄弟节点
-  const addSiblingNode = (nodeId: string, text: string = "新兄弟节点") => {
+  const addSiblingNode = (nodeId: string, text: string = "New Node") => {
     if (!rootNode.value) return;
 
     pushState(); // Save state before modification
@@ -600,8 +607,13 @@ export const useMindmapStore = defineStore("mindmap", () => {
       const index = parentNode.children.findIndex((n) => n.id === node.id);
       if (index !== -1) {
         parentNode.children.splice(index + 1, 0, newNode); // Direct modification
+
+        // Optimization: Create initial dimensions cache
+        const initialDimensions = domMeasurer.getStandardDimensions(settingsStore.settings.nodeStyle);
+        nodeDimensions.value.set(newNode.id, initialDimensions);
+
         nodeMap.value.set(newNode.id, newNode); // Add to nodeMap
-        debouncedApplyLayout(); // Apply layout after adding
+        applyLayout(); // Apply layout immediately (Synchronous)
         selectAndPanToNode(newNode.id); // Select and pan to the new node
 
         // Initialize markdown content for the new node in fileStore
@@ -663,7 +675,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
       };
       parentNode.children.push(newNode);
       nodeMap.value.set(newNode.id, newNode); // Add to nodeMap
-      debouncedApplyLayout();
+      applyLayout(); // Synchronous layout
       selectAndPanToNode(newNode.id);
       const fileStore = useFileStore();
       fileStore.setMarkdownContent(newNode.markdown, "");
@@ -719,7 +731,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
         const insertIndex = position === "before" ? index : index + 1;
         parentNode.children.splice(insertIndex, 0, newNode);
         nodeMap.value.set(newNode.id, newNode); // Add to nodeMap
-        debouncedApplyLayout();
+        applyLayout(); // Synchronous layout
         selectAndPanToNode(newNode.id);
         const fileStore = useFileStore();
         fileStore.setMarkdownContent(newNode.markdown, "");

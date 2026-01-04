@@ -3,6 +3,7 @@ import { ref, watch } from "vue";
 import { ipcRenderer } from "../utils/ipcRenderer";
 import { IPC_EVENTS, AppSettings, MindmapTheme } from "@/types/shared_types";
 import { ElMessage } from "element-plus";
+import { domMeasurer } from "../utils/domMeasurer";
 
 import { v4 as uuidv4 } from "uuid";
 
@@ -82,6 +83,7 @@ export const useSettingsStore = defineStore("settings", () => {
     watch(
         settings,
         () => {
+            domMeasurer.clearCache(); // Invalidate node size cache
             saveSettings();
         },
         { deep: true }
