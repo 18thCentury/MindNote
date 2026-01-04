@@ -30,14 +30,9 @@ export function latexPlugin(context: PluginContext): PluginInfo {
     const { pmState } = context;
 
     return {
-        // 1. Markdown 预览渲染 & 基础解析防御
         toHTMLRenderers: {
-            // 防御性：处理 TUI 核心尝试识别为 customInline 的节点 (通常由 $$ 触发)
             customInline(node: any) {
-                // 直接返回 null 可能会触发核心转换器的 bug (Cannot read properties of undefined reading 'n')
-                // 返回 text 类型并保留原字字面值是最稳妥的逃逸方式
-                console.log("[node]", node)
-                return { type: 'text', content: node.literal || '' };
+                return { type: 'text', content: "" };
             },
 
             text(node: any) {
