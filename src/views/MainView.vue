@@ -18,7 +18,7 @@ const asideWidth = ref("50%");
 const isDragging = ref(false);
 
 // Editor lifecycle control (Hard Reset)
-const renderEditor = ref(true);
+// Removed renderEditor ref as we want to reuse the instance
 
 const handleMouseDown = (e: MouseEvent) => {
     e.preventDefault();
@@ -46,8 +46,8 @@ const handleMouseUp = () => {
 watch(
     () => mindmapStore.primarySelectedNodeId,
     async (newNodeId) => {
-        // Trigger hard reset: destroy editor component first
-        renderEditor.value = false;
+        // No more hard reset (renderEditor = false)
+        // Just update the store content, which propagates to the Editor via props
         
         if (newNodeId) {
             const node = mindmapStore.getNodeById(newNodeId);
@@ -60,11 +60,6 @@ watch(
         } else {
             editorStore.setMarkdownContent("", "");
         }
-
-        // Recreate editor component with a slight delay to ensure complete destruction
-        setTimeout(() => {
-            renderEditor.value = true;
-        }, 50);
     },
     { immediate: true },
 );
@@ -154,8 +149,6 @@ onBeforeUnmount(() => {
         <div class="splitter" @mousedown="handleMouseDown"></div>
         <el-main class="markdown-editor-area">
             <MarkdownEditor
-                v-if="renderEditor"
-                :key="editorStore.currentMarkdownNodeId || 'none'"
                 :initialContent="editorStore.currentMarkdownContent"
                 @content-changed="handleEditorContentChanged"
                 :currentNodeId="editorStore.currentMarkdownNodeId"

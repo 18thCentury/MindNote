@@ -23,6 +23,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
     new Map(),
   );
   const isDragging = ref(false); // Flag to skip layout during drag operations
+  const layoutTrigger = ref(0); // Signal to notify components that layout positions have updated
 
   // --- O(1) Node Lookup ---
   // Map for instant node lookup by ID
@@ -457,6 +458,9 @@ export const useMindmapStore = defineStore("mindmap", () => {
     };
 
     applyToNodes(rootNode.value);
+
+    // Signal that layout is complete and positions are updated
+    layoutTrigger.value++;
   };
 
   // Create a debounced version of the layout function
@@ -1356,6 +1360,7 @@ export const useMindmapStore = defineStore("mindmap", () => {
     undo,
     redo,
     togglePin,
+    layoutTrigger, // Export the trigger
     findNodeAndParent,
     cutNode,
     copyNode, // Added copyNode

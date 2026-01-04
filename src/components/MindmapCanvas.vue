@@ -121,7 +121,7 @@ const updateLayoutElements = () => {
             id: node.id,
             position: position,
             type: "mindmap",
-            data: { ...node },
+            data: node, // Pass reactive node reference directly (Optimization)
             selected: node.id === props.selectedNodeId,
             draggable: node.draggable ?? true,
         } as Node);
@@ -155,7 +155,8 @@ const updateLayoutElements = () => {
 // Watch for structural changes (add/delete nodes, collapse, etc.)
 watch(
     [
-        () => mindmapStore.rootNode,
+        () => mindmapStore.allNodes, // Structural changes (add/remove nodes)
+        () => mindmapStore.layoutTrigger, // Position updates
         () => mindmapStore.viewRootNodeId,
         () => mindmapStore.collapsedNodeIds,
         () => props.selectedNodeId,
@@ -174,7 +175,7 @@ watch(
             updateLayoutElements();
         }, 16);
     },
-    { deep: true, immediate: true }
+    { deep: false, immediate: true }
 );
 
 const dropIndicatorStyle = computed(() => {
