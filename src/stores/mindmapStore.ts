@@ -788,7 +788,38 @@ export const useMindmapStore = defineStore("mindmap", () => {
 
     const fileStore = useFileStore();
     const currentRoot = rootNode.value;
-    let parentOfLastDeleted: MindmapNode | null = null;
+
+    // We will determine the next node to select based on the PRIMARY deleted node (usually the last selected one)
+    // or simply the last one in the deletion list.
+    const primaryIdToDelete = nodeId || primarySelectedNodeId.value;
+    let nextSelectedNodeId: string | null = null;
+    let shouldResetViewRoot = false;
+
+    // Helper to find next selection candidate
+    const determineNextSelection = (id: string) => {
+      const { node, parent } = findNodeAndParent(id, currentRoot);
+      if (node && parent) {
+        const index = parent.children.findIndex(n => n.id === node.id);
+        if (index > 0) {
+          // Priority 1: Upper Sibling (Previous Sibling)
+          return parent.children[index - 1].id;
+        } else {
+          // Priority 2: Parent
+          return parent.id;
+        }
+      }
+      return null;
+    };
+
+    // Determine next selection BEFORE deletion if we are deleting the primary selection
+    if (primaryIdToDelete && validIdsToDelete.includes(primaryIdToDelete)) {
+      nextSelectedNodeId = determineNextSelection(primaryIdToDelete);
+    }
+
+    // Check if we are deleting the current view root (pinned node)
+    if (viewRootNodeId.value && validIdsToDelete.includes(viewRootNodeId.value)) {
+      shouldResetViewRoot = true;
+    }
 
     // Helper to delete a single node
     const deleteSingleNode = (targetId: string) => {
@@ -808,7 +839,6 @@ export const useMindmapStore = defineStore("mindmap", () => {
             parent.children = parent.children.filter(
               (child) => child.id !== targetId,
             );
-            parentOfLastDeleted = parent;
           }
           return true;
         }
@@ -851,46 +881,41 @@ export const useMindmapStore = defineStore("mindmap", () => {
     };
 
     // Execute deletion for all targets
-    // Sort by depth or process carefully to avoid issues if deleting parent and child together
-    // Actually, if we delete a parent, the child is gone too. 
-    // So we should check if a node still exists before trying to delete it.
     for (const id of validIdsToDelete) {
-      console.log(`Attempting to delete node: ${id}`);
       // Check if node still exists (it might have been deleted as a child of a previous node)
       const { node } = findNodeAndParent(id, currentRoot);
       if (node) {
-        console.log(`Node ${id} found, deleting...`);
         deleteSingleNode(id);
-      } else {
-        console.log(`Node ${id} not found (already deleted?)`);
       }
     }
 
     applyLayout(); // Apply layout immediately (Synchronous) after deleting to avoid stutter
     fileStore.markAsUnsaved();
 
-    // Update selection
-    // If we deleted the selected nodes, try to select the parent of the last deleted node
-    // or clear selection if nothing makes sense
-    const remainingSelected = selectedNodeIds.value.filter(id => {
-      const { node } = findNodeAndParent(id, currentRoot);
-      return !!node;
-    });
-
-    if (remainingSelected.length > 0) {
-      selectedNodeIds.value = remainingSelected;
-    } else if (parentOfLastDeleted) {
-      selectNode((parentOfLastDeleted as any).id);
-    } else {
-      selectedNodeIds.value = [];
+    // Reset View Root if needed
+    if (shouldResetViewRoot && rootNode.value) {
+      setViewRoot(rootNode.value.id);
     }
 
-    // If the deleted node was the temporary view root, reset to the actual root
-    // Check if viewRoot still exists
-    if (viewRootNodeId.value) {
-      const { node } = findNodeAndParent(viewRootNodeId.value, currentRoot);
-      if (!node && rootNode.value) {
-        setViewRoot(rootNode.value.id);
+    // Update selection
+    // If we have a calculated next selection, use it.
+    // Otherwise, try to maintain existing selection.
+    if (nextSelectedNodeId) {
+      // Create new selection list? Or just select the one node?
+      // "delete node 后优先设置当前节点 info..." implies selecting that node.
+      selectNode(nextSelectedNodeId);
+    } else {
+      // Fallback: If we didn't calculate a specific next node (e.g. batch delete without primary), 
+      // check if any selected nodes remain valid.
+      const remainingSelected = selectedNodeIds.value.filter(id => {
+        const { node } = findNodeAndParent(id, currentRoot);
+        return !!node;
+      });
+
+      if (remainingSelected.length > 0) {
+        selectedNodeIds.value = remainingSelected;
+      } else {
+        selectedNodeIds.value = [];
       }
     }
   };
