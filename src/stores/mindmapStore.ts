@@ -82,7 +82,10 @@ export const useMindmapStore = defineStore("mindmap", () => {
       rebuildParentIds(restoredNode, null);
       rootNode.value = restoredNode;
       buildNodeMap();
-      debouncedApplyLayout(); // Re-apply layout
+      rebuildParentIds(restoredNode, null);
+      rootNode.value = restoredNode;
+      buildNodeMap();
+      applyLayout(); // Re-apply layout synchronously
       const fileStore = useFileStore();
       fileStore.markAsUnsaved();
     }
@@ -106,7 +109,10 @@ export const useMindmapStore = defineStore("mindmap", () => {
       rebuildParentIds(restoredNode, null);
       rootNode.value = restoredNode;
       buildNodeMap();
-      debouncedApplyLayout(); // Re-apply layout
+      rebuildParentIds(restoredNode, null);
+      rootNode.value = restoredNode;
+      buildNodeMap();
+      applyLayout(); // Re-apply layout synchronously
       const fileStore = useFileStore();
       fileStore.markAsUnsaved();
     }
@@ -250,7 +256,12 @@ export const useMindmapStore = defineStore("mindmap", () => {
       // Build the nodeMap for O(1) lookups
       buildNodeMap();
 
-      debouncedApplyLayout(); // Apply layout immediately on initial data load
+      // Build the nodeMap for O(1) lookups
+      buildNodeMap();
+
+      applyLayout(); // Apply layout immediately on initial data load
+      selectedNodeIds.value = [data.id]; // 默认选中根节点
+      viewRootNodeId.value = data.id; // 默认视图根节点也是实际根节点
       selectedNodeIds.value = [data.id]; // 默认选中根节点
       viewRootNodeId.value = data.id; // 默认视图根节点也是实际根节点
 
@@ -923,8 +934,9 @@ export const useMindmapStore = defineStore("mindmap", () => {
       movedNode.parentNodeId = newParentId;
 
       // Add to new parent
+      // Add to new parent
       newParentNode.children.push(movedNode); // Direct modification
-      debouncedApplyLayout(); // Apply layout after reparenting
+      applyLayout(); // Apply layout immediately
       selectNode(movedNode.id); // Select the moved node
     }
   };
@@ -1069,12 +1081,14 @@ export const useMindmapStore = defineStore("mindmap", () => {
         siblings.splice(targetIndex + 1, 0, draggedNode);
       }
 
-      debouncedApplyLayout();
-      const fileStore = useFileStore();
-
-      fileStore.markAsUnsaved();
     }
+
+    applyLayout(); // Synchronous layout
+    const fileStore = useFileStore();
+
+    fileStore.markAsUnsaved();
   };
+
 
   // Action: 更新节点位置 (无痕)
   const setNodePosition = (
@@ -1209,7 +1223,11 @@ export const useMindmapStore = defineStore("mindmap", () => {
             // Reset position (will be handled by layout)
             // Insert as child
             targetNode.children.push(newData);
-            debouncedApplyLayout();
+            // Insert as child
+            targetNode.children.push(newData);
+            applyLayout(); // Synchronous layout
+            selectAndPanToNode(newData.id);
+            fileStore.markAsUnsaved();
             selectAndPanToNode(newData.id);
             fileStore.markAsUnsaved();
 
@@ -1322,7 +1340,9 @@ export const useMindmapStore = defineStore("mindmap", () => {
         parentStack.push({ node: newNode, level: level });
       });
 
-      debouncedApplyLayout();
+
+
+      applyLayout(); // Synchronous layout
       fileStore.markAsUnsaved();
       ElMessage.success("Text pasted");
 
