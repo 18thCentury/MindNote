@@ -11,7 +11,8 @@ import { generateUuid } from "../utils/uuid"; // Import uuid generator
 export type SaveStatus = "saved" | "unsaved" | "saving" | "error";
 
 export const useFileStore = defineStore("file", () => {
-  const currentFilePath = ref<string | null>(null); // 当前打开的 .mn 文件路径
+  const currentFilePath = ref<string | null>(null); // 当前打开的 .mn 文件路径 (Local or WebDAV remote path)
+  const fileSource = ref<'local' | 'webdav'>('local'); // File source
   const saveStatus = ref<SaveStatus>("saved"); // 文件保存状态
   const tempDir = ref<string | null>(null); // 解压后的临时目录路径
   const allMarkdownContents = shallowRef<Record<string, string>>({}); // 所有加载的 Markdown 内容
@@ -47,16 +48,31 @@ export const useFileStore = defineStore("file", () => {
     allMarkdownContents.value = rest;
   };
 
-  // Action: 打开 .mn 文件
+  // Action: 打开 .mn 文件 (Local)
   const openMnFile = async () => {
     saveStatus.value = "saving"; // 模拟加载状态
     try {
-      const { filePath, tempDirPath, mindmapData, markdownFiles } =
-        await ipcRenderer.invoke(IPC_EVENTS.FILE_OPEN);
-
-      setFileData({ filePath, tempDirPath, mindmapData, markdownFiles });
+      const result = await ipcRenderer.invoke(IPC_EVENTS.FILE_OPEN);
+      if (result) {
+        setFileData({ ...result, source: 'local' });
+      } else {
+        saveStatus.value = "saved"; // Cancelled
+      }
     } catch (error) {
       console.error("Failed to open .mn file:", error);
+      saveStatus.value = "error";
+      throw error;
+    }
+  };
+
+  // Action: Open WebDAV file
+  const openWebDavFile = async (remotePath: string) => {
+    saveStatus.value = "saving";
+    try {
+      const result = await ipcRenderer.invoke(IPC_EVENTS.WEBDAV_OPEN_FILE, remotePath);
+      setFileData({ ...result, source: 'webdav' });
+    } catch (error) {
+      console.error("Failed to open WebDAV file:", error);
       saveStatus.value = "error";
       throw error;
     }
@@ -68,9 +84,11 @@ export const useFileStore = defineStore("file", () => {
     tempDirPath: string;
     mindmapData: any;
     markdownFiles: Record<string, string>;
+    source: 'local' | 'webdav';
   }) => {
     tempDir.value = data.tempDirPath;
     currentFilePath.value = data.filePath;
+    fileSource.value = data.source;
     allMarkdownContents.value = data.markdownFiles;
 
     const mindmapStore = useMindmapStore();
@@ -109,7 +127,7 @@ export const useFileStore = defineStore("file", () => {
       }
 
       // 2. 构建 FileSavePayload (确保符合接口定义)
-      const payload: FileSavePayload = {
+      const basePayload: FileSavePayload = {
         filePath: currentFilePath.value,
         tempDir: tempDir.value,
         mindmapData: {
@@ -121,7 +139,16 @@ export const useFileStore = defineStore("file", () => {
       };
 
       // 3. 调用 IPC 并传递单个 payload 对象
-      await ipcRenderer.invoke(IPC_EVENTS.FILE_SAVE, payload);
+      const payload: FileSavePayload = {
+        ...basePayload,
+        fileSource: fileSource.value,
+      };
+
+      if (fileSource.value === 'webdav') {
+        await ipcRenderer.invoke(IPC_EVENTS.WEBDAV_SAVE_FILE, payload);
+      } else {
+        await ipcRenderer.invoke(IPC_EVENTS.FILE_SAVE, payload);
+      }
 
       saveStatus.value = "saved";
     } catch (error) {
@@ -198,6 +225,7 @@ export const useFileStore = defineStore("file", () => {
         // This logic is now very similar to opening a file
         currentFilePath.value = result.filePath;
         tempDir.value = result.tempDirPath;
+        fileSource.value = 'local';
         allMarkdownContents.value = result.markdownFiles;
 
         const mindmapStore = useMindmapStore();
@@ -251,6 +279,7 @@ export const useFileStore = defineStore("file", () => {
 
       if (result && result.success && result.filePath) {
         currentFilePath.value = result.filePath; // Update to the new file path
+        fileSource.value = 'local'; // Save As currently defaults to local file dialog
         saveStatus.value = "saved";
       } else {
         // User cancelled Save As dialog
@@ -262,6 +291,51 @@ export const useFileStore = defineStore("file", () => {
       throw error;
     }
   };
+
+  // Action: 另存为 (WebDAV)
+  const saveAsToWebDav = async (remotePath: string) => {
+    if (!tempDir.value) return;
+    saveStatus.value = "saving";
+    try {
+      // 1. Prepare data
+      const mindmapStore = useMindmapStore();
+      const editorStore = useEditorStore();
+
+      if (editorStore.currentMarkdownNodeId) {
+        const node = mindmapStore.getNodeById(editorStore.currentMarkdownNodeId);
+        if (node) {
+          allMarkdownContents.value = {
+            ...allMarkdownContents.value,
+            [node.markdown]: editorStore.currentMarkdownContent
+          };
+        }
+      }
+
+      const payload: FileSavePayload = {
+        filePath: remotePath, // remote path
+        tempDir: tempDir.value,
+        mindmapData: {
+          rootNode: JSON.parse(JSON.stringify(mindmapStore.rootNode!)),
+          collapsedNodeIds: [...mindmapStore.collapsedNodeIds],
+        },
+        markdownContents: JSON.parse(JSON.stringify(allMarkdownContents.value)),
+        fileSource: 'webdav',
+      };
+
+      // 2. Call IPC
+      await ipcRenderer.invoke(IPC_EVENTS.WEBDAV_SAVE_FILE, payload);
+
+      // 3. Update state
+      currentFilePath.value = remotePath;
+      fileSource.value = 'webdav';
+      saveStatus.value = "saved";
+    } catch (error) {
+      console.error("Failed to save to WebDAV:", error);
+      saveStatus.value = "error";
+      throw error;
+    }
+  };
+
 
   // Action: 删除临时目录中的文件
   const deleteTempFile = async (relativeFilePath: string) => {
@@ -286,6 +360,7 @@ export const useFileStore = defineStore("file", () => {
 
       // Reset state
       currentFilePath.value = null;
+      fileSource.value = 'local';
       tempDir.value = null;
       allMarkdownContents.value = {};
       saveStatus.value = "saved";
@@ -406,6 +481,7 @@ export const useFileStore = defineStore("file", () => {
 
   return {
     currentFilePath,
+    fileSource,
     saveStatus,
     tempDir,
     isFileOpen,
@@ -425,6 +501,8 @@ export const useFileStore = defineStore("file", () => {
     exportNodeToMarkdown,
     setFileData,
     importFreemind,
+    openWebDavFile,
+    saveAsToWebDav,
   };
 });
 

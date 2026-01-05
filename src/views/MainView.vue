@@ -2,16 +2,20 @@
 import { ref, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
 import MindmapCanvas from "../components/MindmapCanvas.vue";
 import MarkdownEditor from "./MarkdownEditor.vue";
+import WebDavBrowser from "../components/WebDavBrowser.vue";
 import { useMindmapStore } from "../stores/mindmapStore";
 import { useEditorStore } from "../stores/editorStore";
 import { useFileStore } from "../stores/fileStore";
 import { ipcRenderer } from "../utils/ipcRenderer";
 import { IPC_EVENTS } from "../types/shared_types";
-import { Document, FolderOpened } from "@element-plus/icons-vue";
+import { Document, FolderOpened, Cloudy } from "@element-plus/icons-vue";
 
 const mindmapStore = useMindmapStore();
 const editorStore = useEditorStore();
 const fileStore = useFileStore();
+
+// WebDAV Dialog
+const webDavBrowserVisible = ref(false);
 
 // Splitter state
 const asideWidth = ref("50%");
@@ -83,7 +87,10 @@ const handleEditorContentChanged = (content: string, nodeId: string) => {
     editorStore.updateMarkdownContent(content, nodeId);
 };
 
+import { useGlobalKeyboard } from "../composables/useGlobalKeyboard";
+
 const handleGlobalKeydown = (e: KeyboardEvent) => {
+    // Composable handles guards
     if (e.ctrlKey || e.metaKey) {
         if (e.key === 'n') {
             e.preventDefault();
@@ -91,7 +98,12 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
         }
         if (e.key === 'o') {
             e.preventDefault();
-            fileStore.openMnFile();
+             if (e.shiftKey) {
+                 // Open WebDAV?
+                 webDavBrowserVisible.value = true;
+            } else {
+                fileStore.openMnFile();
+            }
         }
         if (e.key === 's') {
             e.preventDefault();
@@ -104,8 +116,11 @@ const handleGlobalKeydown = (e: KeyboardEvent) => {
     }
 };
 
+// Allow input (e.g. Ctrl+S in editor), but block modals
+useGlobalKeyboard(handleGlobalKeydown, { ignoreInput: false, ignoreModal: true });
+
 onMounted(() => {
-    window.addEventListener('keydown', handleGlobalKeydown);
+    // window.addEventListener('keydown', handleGlobalKeydown); // Removed
 
     // Listen for file opened from main process (e.g. double click .mn file)
     ipcRenderer.on(IPC_EVENTS.FILE_OPENED, (event: any, data: any) => {
@@ -117,7 +132,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-    window.removeEventListener('keydown', handleGlobalKeydown);
+    // window.removeEventListener('keydown', handleGlobalKeydown); // Removed
     // ipcRenderer.off(IPC_EVENTS.FILE_OPENED, ...); // Clean up if listener was named
     document.removeEventListener("mousemove", handleMouseMove);
     document.removeEventListener("mouseup", handleMouseUp);
@@ -126,6 +141,7 @@ onBeforeUnmount(() => {
 
 <template>
     <el-container class="main-view-container">
+        <WebDavBrowser v-model="webDavBrowserVisible" />
         <el-aside :style="{ width: asideWidth }" class="mindmap-area">
             <MindmapCanvas
                 :nodes="mindmapStore.allNodes"
@@ -140,7 +156,10 @@ onBeforeUnmount(() => {
                             <el-icon class="el-icon--left"><Document /></el-icon> New MindNote (Ctrl+N)
                         </el-button>
                         <el-button size="large" @click="fileStore.openMnFile">
-                            <el-icon class="el-icon--left"><FolderOpened /></el-icon> Open MindNote (Ctrl+O)
+                            <el-icon class="el-icon--left"><FolderOpened /></el-icon> Open Local (Ctrl+O)
+                        </el-button>
+                        <el-button size="large" @click="webDavBrowserVisible = true">
+                            <el-icon class="el-icon--left"><Cloudy /></el-icon> WebDAV
                         </el-button>
                     </div>
                 </div>

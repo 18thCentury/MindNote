@@ -2,9 +2,10 @@
 import { useFileStore } from "../stores/fileStore";
 import { ElMessage } from "element-plus";
 // 确保这些图标已从 Element Plus 导入
-import { Minus, CopyDocument, Close, Document, FolderOpened, Box, Setting } from "@element-plus/icons-vue";
+import { Minus, CopyDocument, Close, Document, FolderOpened, Box, Setting, Cloudy } from "@element-plus/icons-vue";
 import { ipcRenderer } from "../utils/ipcRenderer";
 import SettingsModal from "./SettingsModal.vue"; // Import SettingsModal
+import WebDavBrowser from "./WebDavBrowser.vue";
 import { ref, computed } from "vue";
 
 const settingsModalVisible = ref(false);
@@ -70,6 +71,11 @@ const handleOpenSettings = () => {
     settingsModalVisible.value = true;
 };
 
+const webDavBrowserVisible = ref(false);
+const handleSaveToWebDav = () => {
+    webDavBrowserVisible.value = true;
+};
+
 
 // 实际的窗口控制函数
 const handleMinimize = () => {
@@ -111,6 +117,13 @@ const handleClose = () => {
                         <el-icon><Box /></el-icon>Save As
                     </el-menu-item>
                     <el-menu-item
+                        index="1-4-2"
+                        @click="handleSaveToWebDav"
+                        :disabled="!fileStore.isFileOpen"
+                    >
+                        <el-icon><Cloudy /></el-icon>Save to WebDAV...
+                    </el-menu-item>
+                    <el-menu-item
                         index="1-5"
                         @click="handleCloseFile"
                         :disabled="!fileStore.isFileOpen"
@@ -132,6 +145,7 @@ const handleClose = () => {
         </div>
 
         <SettingsModal v-model="settingsModalVisible" class="settings-modal"/>
+        <WebDavBrowser v-model="webDavBrowserVisible" mode="save" />
 
 
         <div class="drag-spacer"></div>

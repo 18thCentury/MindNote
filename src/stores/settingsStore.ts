@@ -44,6 +44,11 @@ const DEFAULT_SETTINGS: AppSettings = {
     },
     mindmapThemes: [],
     activeMindmapTheme: null,
+    webdav: {
+        url: "",
+        username: "",
+        encryptedPassword: "",
+    },
 };
 
 export const useSettingsStore = defineStore("settings", () => {
@@ -133,6 +138,20 @@ export const useSettingsStore = defineStore("settings", () => {
         }
     };
 
+    const saveWebDavSettings = async (url: string, username: string, password?: string) => {
+        try {
+            await ipcRenderer.invoke(IPC_EVENTS.WEBDAV_SAVE_SETTINGS, { url, username, password });
+            // Update local state (except password, which is encrypted and reload needed or just assume saved)
+            // Reloading settings is safer
+            await loadSettings();
+            ElMessage.success("WebDAV settings saved.");
+        } catch (error) {
+            console.error("Failed to save WebDAV settings:", error);
+            ElMessage.error("Failed to save WebDAV settings.");
+            throw error;
+        }
+    };
+
     return {
         settings,
         loadSettings,
@@ -141,6 +160,7 @@ export const useSettingsStore = defineStore("settings", () => {
         saveMindmapTheme,
         applyMindmapTheme,
         deleteMindmapTheme,
+        saveWebDavSettings,
     };
 });
 

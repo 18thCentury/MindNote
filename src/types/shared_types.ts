@@ -86,6 +86,16 @@ export enum IPC_EVENTS {
   // Settings
   SETTINGS_READ = "settings:read",
   SETTINGS_WRITE = "settings:write",
+  // WebDAV
+  WEBDAV_CHECK_CONNECTION = "webdav:check-connection",
+  WEBDAV_READ_DIR = "webdav:read-dir",
+  WEBDAV_OPEN_FILE = "webdav:open-file",
+  WEBDAV_SAVE_FILE = "webdav:save-file",
+  WEBDAV_SAVE_SETTINGS = "webdav:save-settings", // Encrypt and save
+  SETTINGS_GET_WEBDAV_PASSWORD = "settings:get-webdav-password", // Decrypt for connection (internal or verify)
+  WEBDAV_CREATE_DIR = "webdav:create-dir",
+  WEBDAV_DELETE_FILE = "webdav:delete-file",
+  WEBDAV_RENAME_FILE = "webdav:rename-file",
 }
 
 /**
@@ -96,6 +106,29 @@ export interface FileSavePayload {
   tempDir: string;
   mindmapData: MindmapData;
   markdownContents: Record<string, string>; // A map of { nodeId: markdownContent }
+  fileSource?: 'local' | 'webdav'; // default is local
+}
+
+/**
+ * WebDAV File Item
+ */
+export interface WebDavFileItem {
+  filename: string;
+  basename: string;
+  lastmod: string;
+  size: number;
+  type: "directory" | "file";
+  mime?: string;
+}
+
+/**
+ * WebDAV Configuration
+ */
+export interface WebDavConfig {
+  url: string;
+  username: string;
+  password?: string; // Only used for transit, not executed to store
+  encryptedPassword?: string; // Stored in settings
 }
 
 /**
@@ -190,6 +223,7 @@ export interface AppSettings {
   shortcuts: Record<string, string>; // Action ID -> Shortcut Key (e.g., "file:new": "Ctrl+N")
   mindmapThemes: MindmapTheme[];
   activeMindmapTheme: string | null;
+  webdav?: WebDavConfig;
 }
 
 

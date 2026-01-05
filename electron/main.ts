@@ -1,14 +1,16 @@
-import { app, BrowserWindow, ipcMain, dialog, protocol } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, protocol, safeStorage } from "electron";
 import path from "node:path";
 import fs from "fs/promises";
 import * as fsStandard from "fs";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import * as fileOperations from "./fileOperations.js";
+import * as webdavOperations from "./webdavOperations.js";
 import {
   IPC_EVENTS,
   MindmapNode,
   FileSavePayload,
+  WebDavConfig,
 } from "../src/types/shared_types.js"; // Import IPC_EVENTS
 
 const __filename = fileURLToPath(import.meta.url);
@@ -473,6 +475,160 @@ if (!gotTheLock) {
       console.error("Failed to save settings:", error);
       throw error;
     }
+  });
+
+  // --- WebDAV IPC Handlers ---
+
+  // Helper to get WebDAV client using provided credentials or saved settings
+  async function getWebDavClientForUser(config?: { url?: string; username?: string; password?: string }) {
+    let url = config?.url;
+    let username = config?.username;
+    let password = config?.password;
+
+    // If any credential is missing, try to read from settings
+    if (!url || !username || !password) {
+      const settingsPath = path.join(app.getPath("userData"), "settings.json");
+      try {
+        const data = await fs.readFile(settingsPath, "utf-8");
+        const settings = JSON.parse(data);
+        const webdav = settings.webdav || {};
+
+        if (!url) url = webdav.url;
+        if (!username) username = webdav.username;
+
+        // If we don't have a plain password providing, try to decrypt the saved one
+        if (!password && webdav.encryptedPassword) {
+          if (safeStorage.isEncryptionAvailable()) {
+            const buffer = Buffer.from(webdav.encryptedPassword, 'hex');
+            password = safeStorage.decryptString(buffer);
+          } else {
+            console.warn("safeStorage is not available. Cannot decrypt password.");
+          }
+        }
+      } catch (e) {
+        // Ignore settings read error
+      }
+    }
+
+    if (!url) throw new Error("WebDAV URL is required");
+
+    return webdavOperations.getWebDavClient(url, username, password);
+  }
+
+  ipcMain.handle(IPC_EVENTS.WEBDAV_CHECK_CONNECTION, async (event, config: WebDavConfig) => {
+    try {
+      const client = await getWebDavClientForUser(config);
+      return await webdavOperations.checkConnection(client);
+    } catch (e) {
+      console.error("WebDAV check connection failed", e);
+      return false;
+    }
+  });
+
+  ipcMain.handle(IPC_EVENTS.WEBDAV_READ_DIR, async (event, remotePath: string) => {
+    try {
+      const client = await getWebDavClientForUser();
+      return await webdavOperations.readDirectory(client, remotePath);
+    } catch (e) {
+      console.error("WebDAV read dir failed", e);
+      throw e;
+    }
+  });
+
+  ipcMain.handle(IPC_EVENTS.WEBDAV_OPEN_FILE, async (event, remoteFilePath: string) => {
+    try {
+      // Clean up previous session's temp dir
+      await cleanupActiveTempDir();
+
+      const client = await getWebDavClientForUser();
+      const { tempDirPath, mindmapData, markdownFiles, localZipPath } = await webdavOperations.openWebDavFile(client, remoteFilePath);
+
+      activeTempDir = tempDirPath; // Track temp dir
+      // We might want to track that this is a WebDAV file and its path for saving later?
+      // Ideally the renderer keeps track of "currentWebDavPath" and source="webdav".
+
+      return { tempDirPath, mindmapData, markdownFiles, filePath: remoteFilePath }; // Return remote path as filePath
+    } catch (e) {
+      console.error("WebDAV open file failed", e);
+      throw e;
+    }
+  });
+
+  ipcMain.handle(IPC_EVENTS.WEBDAV_SAVE_FILE, async (event, payload: FileSavePayload) => {
+    try {
+      const client = await getWebDavClientForUser();
+      const { filePath, tempDir, mindmapData, markdownContents } = payload;
+
+      // filePath here is the remote WebDAV path
+      await webdavOperations.saveWebDavFile(client, filePath, tempDir, mindmapData, markdownContents);
+      return { success: true };
+    } catch (e) {
+      console.error("WebDAV save file failed", e);
+      throw e;
+    }
+  });
+
+  ipcMain.handle(IPC_EVENTS.WEBDAV_CREATE_DIR, async (event, remotePath: string) => {
+    try {
+      const client = await getWebDavClientForUser();
+      await webdavOperations.createDirectory(client, remotePath);
+      return { success: true };
+    } catch (e) {
+      console.error("WebDAV create dir failed", e);
+      throw e;
+    }
+  });
+
+  ipcMain.handle(IPC_EVENTS.WEBDAV_DELETE_FILE, async (event, remotePath: string) => {
+    try {
+      const client = await getWebDavClientForUser();
+      await webdavOperations.deleteFile(client, remotePath);
+      return { success: true };
+    } catch (e) {
+      console.error("WebDAV delete file failed", e);
+      throw e;
+    }
+  });
+
+  ipcMain.handle(IPC_EVENTS.WEBDAV_RENAME_FILE, async (event, sourcePath: string, targetPath: string) => {
+    try {
+      const client = await getWebDavClientForUser();
+      await webdavOperations.renameFile(client, sourcePath, targetPath);
+      return { success: true };
+    } catch (e) {
+      console.error("WebDAV rename file failed", e);
+      throw e;
+    }
+  });
+
+  ipcMain.handle(IPC_EVENTS.WEBDAV_SAVE_SETTINGS, async (event, config: WebDavConfig) => {
+    // Save URL, Username, and Encrypted Password to settings
+    const settingsPath = path.join(app.getPath("userData"), "settings.json");
+    let settings: any = {};
+    try {
+      const data = await fs.readFile(settingsPath, "utf-8");
+      settings = JSON.parse(data);
+    } catch (e) {
+      // ignore
+    }
+
+    if (!settings.webdav) settings.webdav = {};
+    settings.webdav.url = config.url;
+    settings.webdav.username = config.username;
+
+    if (config.password) {
+      if (safeStorage.isEncryptionAvailable()) {
+        const encrypted = safeStorage.encryptString(config.password);
+        settings.webdav.encryptedPassword = encrypted.toString('hex');
+      } else {
+        console.warn("safeStorage not available, cannot save password.");
+        // Maybe throw error or save plain text? No, better safe than sorry.
+        throw new Error("Generic Keyring service is not available.");
+      }
+    }
+
+    await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2), "utf-8");
+    return { success: true };
   });
 
   // Test that the main process can receive messages from the renderer process

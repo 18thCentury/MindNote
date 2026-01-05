@@ -758,7 +758,15 @@ const addImageToNode = async (nodeId: string) => {
     }
 };
 
+import { shouldIgnoreGlobalShortcut } from "../utils/keyboardUtils"; // Import at top level actually, but for this tool I need to update imports separately or include them here if I can view the file again to check imports.
+import { useGlobalKeyboard } from "../composables/useGlobalKeyboard";
+
+// ... (other refs)
+
 const handleKeyDown = (event: KeyboardEvent) => {
+    // Logic handled by composable guards now
+    // if (shouldIgnoreGlobalShortcut(event)) return; // Removed
+
     if (uiStore.activePanel !== 'mindmap') return;
     if (editorStore.isTextInputActive) return;
     
@@ -822,13 +830,8 @@ const showContextMenu = async (event: MouseEvent) => {
 };
 
 // --- Lifecycle Hooks ---
-onMounted(() => {
-    window.addEventListener("keydown", handleKeyDown);
-});
-
-onBeforeUnmount(() => {
-    window.removeEventListener("keydown", handleKeyDown);
-});
+useGlobalKeyboard(handleKeyDown);
+// onMounted and onBeforeUnmount removed as they are inside useGlobalKeyboard
 
 // --- Viewport Management ---
 const panToNode = (nodeId: string) => {

@@ -6,6 +6,10 @@ MindNote is a modern desktop application that seamlessly combines mind mapping w
 
 -   **Visual Mind Mapping**: Create and organize nodes in an infinite canvas using [Vue Flow](https://vueflow.dev/).
 -   **Integrated Markdown Editor**: Edit node content with a powerful Markdown editor powered by [Toast UI Editor](https://ui.toast.com/tui-editor).
+-   **WebDAV Integration**: Connect to WebDAV servers to browse, open, and manage (create folders, rename, delete) your remote mindmap files.
+-   **Mathematical Formulas**: Complete support for LaTeX mathematical expressions in the editor using KaTeX.
+-   **Search and Replace**: Robust search and replace functionality within the markdown editor.
+-   **Freemind Import**: Seamlessly import legacy `.mm` files, automatically converting rich HTML content to Markdown.
 -   **File Management**: Save your work as `.mn` files (custom archive format) containing your mindmap structure, markdown content, and images.
 -   **Rich Media Support**: Drag and drop images directly onto nodes or into the editor.
 -   **Customizable Themes**:
