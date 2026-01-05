@@ -6,11 +6,16 @@ import { v4 as uuidv4 } from "uuid";
 import * as fileOperations from "./fileOperations.js";
 import { MindmapData } from "../src/types/shared_types.js";
 
+import https from "https";
+
+const httpsAgent = new https.Agent({ keepAlive: true });
+
 // Helper to create client
 export function getWebDavClient(url: string, username?: string, password?: string): WebDAVClient {
     return createClient(url, {
         username,
         password,
+        httpsAgent,
     });
 }
 
